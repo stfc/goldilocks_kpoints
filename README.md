@@ -1,4 +1,4 @@
-# Prediction of k-distance in the inverse space
+# Prediction of k-distance
 ### How do you choose parameters for your DFT calculations?
 
 Under development ...
