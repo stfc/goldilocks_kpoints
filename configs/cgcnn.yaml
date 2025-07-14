@@ -1,0 +1,75 @@
+# CGCNN Configuration
+train:
+  epochs: 300
+  accelerator: gpu
+  number_of_checkpoints: 1
+  devices: 1
+  patience: 50
+  run_name: test0
+  experiment_name: cgcnn_basic
+  version: '1.0'
+
+data:
+  additional_compound_features: lattice # is_metal_cgcnn, magpie, lattice
+  additional_atom_features: null # soap
+  root_dir: data/cgcnn_junwen_july_3_kdist
+  model_name: cgcnn
+  id_prop_csv: id_prop.csv
+  checkpoint_path: trained_models/cgcnn/cgcnn_epoch=48_val_mcc=0.80_mp_metal_non_metal.ckpt
+  data_file: data/cgcnn_junwen_july_3_kdist/junwen_3_july_no_structural_duplicates_kdist_with_supercell.pkl
+  features_file: embeddings/atom_init_with_sssp_cutoffs.json
+  train_ratio: 0.8
+  val_ratio: 0.1
+  test_ratio: 0.1
+  lmdb_exist: true
+  lmdb_test_name: test_data.lmdb
+  lmdb_train_name: train_data.lmdb
+  lmdb_val_name: val_data.lmdb
+  batch_size: 128
+  graph_params:
+    radius: 10.0
+    max_neighbors: 12
+  pin_memory: false
+  random_seed: 42
+  stratify: false
+  scale_y: false
+  soap_params: null
+  #   r_cut: 10.0
+  #   n_max: 8
+  #   l_max: 6
+  #   sigma: 1.0
+
+model:  #clarify the question of weight initialization in lightning and random_seed for that
+  name: cgcnn
+  n_conv: 3
+  h_fea_len: 128
+  orig_atom_fea_len: 92
+  edge_feat_dim: 64
+  atom_fea_len: 64
+  n_h: 1
+  robust_regression: false
+  quantile_regression: true
+  classification: false
+  num_classes: 2
+  pooling_type: 'mean_pool' # other possibilities : ..
+  additional_compound_features: false
+  add_feat_len: 146
+
+loss:
+  name: RobustL1Loss # RobustL2Loss, RobustL1Loss, QuantileLoss, CrossEntropyLoss, HuberLoss, L1Loss, MSELoss, StudentTloss
+  quantile: 0.9 # for quantile regression
+  student_nu: 5
+
+optim:
+  weight_decay: 0.0001  # 1e-5
+  learning_rate: 0.001
+  weights: false
+  optimizer: adamw
+  momentum: 0.9
+  scheduler: onecycle
+  swa: true
+  swa_lr: 0.005
+  swa_start: 50
+
+prediction:
+  predict_for_validation: true

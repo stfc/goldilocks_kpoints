@@ -1,0 +1,35 @@
+# Ensemble models Configuration
+data:
+    root_dir: data/cgcnn_junwen_july_3_kdist
+    id_prop_csv: id_prop.csv
+    random_seed: 42
+    train_ratio: 0.8
+    val_ratio: 0.1
+    test_ratio: 0.1
+    save_features: true
+
+model:
+    model_name: GB # RF, GB, HGB
+    random_seed: 42
+    n_estimators: 100
+    learning_rate: 0.05
+    composition_features:
+        ElementProperty: true
+        Stoichiometry: true
+        ValenceOrbital: true
+        IonProperty: false
+        AtomicOrbitals: false
+    structure_features:
+        GlobalSymmetryFeatures: true
+        DensityFeatures: true
+    jarvis_features: false
+    soap_features: true
+    soap_params: 
+        r_cut: 10.0
+        n_max: 8
+        l_max: 6
+        sigma: 1.0
+    classification: false
+    quantile_regression: false
+    quantile: 0.9
+    

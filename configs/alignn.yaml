@@ -1,0 +1,49 @@
+train:
+  epochs: 300
+  accelerator: gpu
+  number_of_checkpoints: 3
+  devices: 1
+  patience: 50
+  run_name: test0
+  experiment_name: test
+  version: '1.0'
+
+data:
+  root_dir: data/cgcnn_junwen_may_k_number
+  model_name: alignn
+  id_prop_csv: id_prop.csv
+  features_file: embeddings/atom_init_original.json
+  train_ratio: 0.8
+  val_ratio: 0.1
+  test_ratio: 0.1
+  lmdb_exist: false
+  batch_size: 4
+  radius: 10.0
+  max_neighbors: 12
+  pin_memory: false
+  random_seed: 42
+
+model:
+  name: alignn
+  alignn_layers: 4
+  gcn_layers: 4
+  radius: 10.0
+  atom_input_features: 92
+  edge_input_features: 40
+  triplet_input_features: 20
+  hidden_features: 64
+  classification: false
+  num_classes: 2
+  robust_regression: false
+
+loss:
+  name: RobustL2Loss # RobustL1Loss, QuantileLoss, CrossEntropyLoss, HuberLoss, L1Loss, MSELoss
+  quantile: 0.5 # for quantile regression
+  
+optim:
+  weight_decay: 0.00001  # 1e-5
+  learning_rate: 0.0003
+  criterion: mse
+  optimizer: adamw
+  momentum: 0.9
+  scheduler: onecycle
