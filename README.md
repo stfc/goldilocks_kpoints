@@ -1,5 +1,5 @@
 # Prediction of k-distance
-* How do you choose parameters for your DFT calculations? *
+* How do you choose parameters for your DFT calculations? 
 
 This package contains the code to find/train/evaluate the best model to predict k-dist for SCF total energy calculations with plan wave DFT codes for inorganic 3D materials. All models take as input the structure or/and composition of the compound and output k-dist, which is expected to guarantee convergence of total energy calculations and minimize the amount of computational time.
 
