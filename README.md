@@ -37,7 +37,7 @@ All the data was generated with these parameters fixed:
 1. Quantum Espresso code
 2. SSSP1.3_PBESol_efficiency library of pseudopotentials
 3. Energy cutoffs are those recommended for SSSP1.3_PBESol_efficiency
-4. Cold smearing is used for all compounds with degauss=0.1Ry
+4. Cold smearing is used for all compounds with degauss=0.01Ry
 5. All compounds are treated as non-magnetic
 
 The calculation is considered converged if the total energy change for the 3 consecutive k-meshes with increasing number of points is within 1meV/atom.
