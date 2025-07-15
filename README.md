@@ -31,7 +31,7 @@ As the baseline, we use a dummy model predicting k_dist=const, which is determin
 In high-throughput calculations, usually fixed k-dist is usually used for all compounds, which is fixed at a  relatively low value to guarantee convergence. Here we suggest using ML to predict kdist, which is closer to the real one, also minimizes the number of underconverged calculations, and through this saves compute. 
 
 ### Definition of convergence and dataset generation. 
-The definition of convergence and dataset generation was provided by Yunwen Yin.
+The definition of convergence and dataset generation was provided by Junwen Yin.
 
 All the data was generated with these parameters fixed:
 1. Quantum Espresso code
