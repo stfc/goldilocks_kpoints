@@ -31,7 +31,7 @@ class GNNModel(L.LightningModule):
     
         # Defining the model
         self.model_name = config['model']['name']   
-
+        
         if(self.model_name == 'alignn'):
             self.model=ALIGNN_PyG(**config['model'])
             print(f'Model name: {self.model_name}\n')
@@ -50,12 +50,13 @@ class GNNModel(L.LightningModule):
                 config['model']['add_feat_len'] = add_feat_len
             else:
                 config['model']['additional_compound_features'] = False
+                config['model']['add_feat_len'] = None
             
-            # nbr_fea_len = structures[1].shape[-1]
             self.model=CGCNN_PyG(**config['model'])
             print(f'Model name: {self.model_name}\n')
             print(f'Model size: {count_parameters(self.model)} parameters\n')
         
+        print(self.model)
         # Defining the loss function 
         self.classification = config['model']['classification']
         self.robust_regression = config['model']['robust_regression']
@@ -140,6 +141,8 @@ class GNNModel(L.LightningModule):
             prediction=prediction.squeeze()
             log_std=log_std.squeeze()
             loss = self.criterion(prediction, log_std, target)
+        elif self.classification:
+            loss = self.criterion(output, target.long())
         else:
             output = output.view(-1)
             loss = self.criterion(output, target)
@@ -181,6 +184,8 @@ class GNNModel(L.LightningModule):
             prediction=prediction.squeeze()
             log_std=log_std.squeeze()
             loss = self.criterion(prediction, log_std, target)
+        elif self.classification:
+            loss = self.criterion(output, target.long())
         else:
             output = output.view(-1)
             loss = self.criterion(output, target)
@@ -222,6 +227,8 @@ class GNNModel(L.LightningModule):
             prediction=prediction.squeeze()
             log_std=log_std.squeeze()
             loss = self.criterion(prediction, log_std, target)
+        elif self.classification:
+            loss = self.criterion(output, target.long())
         else:
             output = output.view(-1)
             loss = self.criterion(output, target)
@@ -243,6 +250,7 @@ class GNNModel(L.LightningModule):
             mae = mean_absolute_error(target.cpu(),prediction.data.cpu())
             self.log("test_mse", float(mse), on_step=False, on_epoch=True, prog_bar=False, logger=True, batch_size=self.batch_size)
             self.log("test_mae", float(mae), on_step=False, on_epoch=True, prog_bar=True, logger=True, batch_size=self.batch_size)
+        else:    
             mse = mean_squared_error(target.cpu(),output.data.cpu())
             mae = mean_absolute_error(target.cpu(),output.data.cpu())
             self.log("test_mse", float(mse), on_step=False, on_epoch=True, prog_bar=False, logger=True, batch_size=self.batch_size)

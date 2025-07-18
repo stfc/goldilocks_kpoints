@@ -59,6 +59,8 @@ class Ensembles:
         self.jarvis_features = config['model']['jarvis_features']
         self.soap_features = config['model']['soap_features']
         self.soap_params = config['model']['soap_params']
+        # self.is_metal = config['model']['is_metal']
+        # self.is_metal_ckpt_path = config['data']['is_metal_ckpt_path']
         
         if self.composition_features is not None:
             list_of_feat = [k for k, v in self.composition_features.items() if v]
@@ -195,12 +197,10 @@ class Ensembles:
             self.model.fit(Xtrain,ytrain)
             ypred = self.model.predict(Xtest)
             probs = self.model.predict_proba(Xtest)
-            predictions = pd.DataFrame({
-                                                    "ids": np.array(self.data.iloc[test_ind][0], dtype=int),
-                                                    "truth": ytest,
-                                                    "pred": ypred,
-                                                    "probs": probs
-                                                })
+            predictions = pd.DataFrame({"ids": np.array(self.data.iloc[test_ind][0], dtype=int),
+                                        "truth": ytest,
+                                        "pred": ypred,
+                                        "probs": probs[:,1] })
         else:
             if not self.quantile_regression:
                 self.model.fit(Xtrain,ytrain)
