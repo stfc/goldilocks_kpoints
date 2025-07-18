@@ -160,28 +160,31 @@ def create_structure_features(df, structure_column: str = 'structure'):
     }
     features=np.zeros((len(df),15))
     for i,structure in enumerate(df[structure_column].values):
-        feature=[]
-        for x in structure.lattice.abc:
-            feature.append(x)
-        for x in structure.lattice.angles:
-            feature.append(x)
-        for x in structure.lattice.reciprocal_lattice.abc:
-            feature.append(x)
-        for x in structure.lattice.reciprocal_lattice.angles:
-            feature.append(x)
-        sga = SpacegroupAnalyzer(structure, symprec=0.01)
-        spg_symbol = sga.get_space_group_symbol()
-        spg_number = sga.get_space_group_number()
-        crystal_system = sga.get_crystal_system()
-        centering = spg_symbol[0]
-        bravais = system_abbr[crystal_system] + centering
-        crystal_system_id = crystal_system_map[crystal_system]
-        bravais_id = bravais_map.get(bravais, -1)
-        feature.append(crystal_system_id)
-        feature.append(bravais_id)
-        feature.append(spg_number)
-        feature=np.array(feature)
-        features[i,:]=feature
+        try:
+            feature=[]
+            for x in structure.lattice.abc:
+                feature.append(x)
+            for x in structure.lattice.angles:
+                feature.append(x)
+            for x in structure.lattice.reciprocal_lattice.abc:
+                feature.append(x)
+            for x in structure.lattice.reciprocal_lattice.angles:
+                feature.append(x)
+            sga = SpacegroupAnalyzer(structure, symprec=0.01)
+            spg_symbol = sga.get_space_group_symbol()
+            spg_number = sga.get_space_group_number()
+            crystal_system = sga.get_crystal_system()
+            centering = spg_symbol[0]
+            bravais = system_abbr[crystal_system] + centering
+            crystal_system_id = crystal_system_map[crystal_system]
+            bravais_id = bravais_map.get(bravais, -1)
+            feature.append(crystal_system_id)
+            feature.append(bravais_id)
+            feature.append(spg_number)
+            feature=np.array(feature)
+            features[i,:]=feature
+        except:
+            print(f'failed to calculate lattice features for {structure.formula}')
     features=np.nan_to_num(features, copy=True, nan=0.0, posinf=None, neginf=None)
     return pd.DataFrame(features)
 
@@ -189,8 +192,8 @@ def create_structure_features(df, structure_column: str = 'structure'):
 def create_is_metal_cgcnn_features(root_dir: str, checkpoint_path: str):
     """Create a dataframe with embeddings extracted from prevoiusly trained CGCNN model
     """
-    from datamodule import GNNDataModule
-    from cgcnn_model import CGCNN_PyG
+    from datamodules.datamodule import GNNDataModule
+    from models.cgcnn import CGCNN_PyG
 
     data = GNNDataModule(root_dir = root_dir,
                          id_prop_csv = 'id_prop.csv',
@@ -204,23 +207,24 @@ def create_is_metal_cgcnn_features(root_dir: str, checkpoint_path: str):
                          lmdb_val_name = 'val_data_is_metal.lmdb',
                          lmdb_test_name = 'test_data_is_metal.lmdb',
                          batch_size = 64,
-                         radius = 10.0,
-                         max_neighbors = 12,
-                         pin_memory = True,
-                         random_seed = 123,
-                         stratify = False,
-                         additional_features = None,
-                         data_file = None)
+                         graph_params={'radius': 10.0, 'max_neighbors':12},
+                         pin_memory = False,
+                         random_seed = 123)
     
     dataset=data.test_dataset
     g=dataset.get(0)
     orig_atom_fea_len = g.x[0].shape[-1]
-    model=CGCNN_PyG(orig_atom_fea_len,robust_regression=True)
+    model=CGCNN_PyG(orig_atom_fea_len=orig_atom_fea_len,
+                    n_conv=3, h_fea_len=128, edge_feat_dim=64,
+                    atom_fea_len=64, n_h=2, classification=True,
+                    additional_compound_features=False, add_feat_len=None)
+
     checkpoint = torch.load(checkpoint_path, map_location='cpu')
     model_weights = checkpoint["state_dict"]
     for key in list(model_weights):
         model_weights[key.replace("model.", "")] = model_weights.pop(key)
     model.load_state_dict(model_weights)
+    # model.load_state_dict(model_weights, strict=False)
     model.eval()
 
     loader=data.test_dataloader()

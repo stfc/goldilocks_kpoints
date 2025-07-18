@@ -10,14 +10,14 @@ train:
   version: '1.0'
 
 data:
-  additional_compound_features: lattice # is_metal_cgcnn, magpie, lattice
+  additional_compound_features: is_metal_cgcnn # is_metal_cgcnn, magpie, lattice
   additional_atom_features: null # soap
-  root_dir: data/cgcnn_junwen_july_3_kdist
+  root_dir: data/cgcnn_junwen_july_3_kdist          # cgcnn_data_mp_metal_nonmetal       #cgcnn_junwen_july_3_kdist
   model_name: cgcnn
   id_prop_csv: id_prop.csv
-  checkpoint_path: trained_models/cgcnn/cgcnn_epoch=48_val_mcc=0.80_mp_metal_non_metal.ckpt
-  data_file: data/cgcnn_junwen_july_3_kdist/junwen_3_july_no_structural_duplicates_kdist_with_supercell.pkl
-  features_file: embeddings/atom_init_with_sssp_cutoffs.json
+  checkpoint_path: trained_models/cgcnn/is_metal_nh2/is_metal.ckpt
+  data_file: data/cgcnn_data_mp_metal_nonmetal/mp_metal_nonmetal_no_structural_duplicates.pkl
+  features_file: embeddings/atom_init_original.json
   train_ratio: 0.8
   val_ratio: 0.1
   test_ratio: 0.1
@@ -46,28 +46,28 @@ model:  #clarify the question of weight initialization in lightning and random_s
   orig_atom_fea_len: 92
   edge_feat_dim: 64
   atom_fea_len: 64
-  n_h: 1
-  robust_regression: false
-  quantile_regression: true
+  n_h: 3
+  robust_regression: true
+  quantile_regression: false
   classification: false
   num_classes: 2
   pooling_type: 'mean_pool' # other possibilities : ..
-  additional_compound_features: false
-  add_feat_len: 146
+  additional_compound_features: true
+  add_feat_len: 64
 
 loss:
-  name: RobustL1Loss # RobustL2Loss, RobustL1Loss, QuantileLoss, CrossEntropyLoss, HuberLoss, L1Loss, MSELoss, StudentTloss
+  name: RobustL2Loss # RobustL2Loss, RobustL1Loss, QuantileLoss, CrossEntropyLoss, HuberLoss, L1Loss, MSELoss, StudentTloss
   quantile: 0.9 # for quantile regression
   student_nu: 5
 
 optim:
-  weight_decay: 0.0001  # 1e-5
-  learning_rate: 0.001
+  weight_decay: 0.0002  # 1e-5
+  learning_rate: 0.005
   weights: false
   optimizer: adamw
   momentum: 0.9
   scheduler: onecycle
-  swa: true
+  swa: false
   swa_lr: 0.005
   swa_start: 50
 

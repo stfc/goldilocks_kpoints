@@ -60,12 +60,12 @@ class CGCNNConv(MessagePassing):
 
 
 class CGCNN_PyG(nn.Module):
-    def __init__(self, orig_atom_fea_len, edge_feat_dim=40, name ='cgcnn',
-                 h_fea_len=128, atom_fea_len=64, n_conv=3, n_h=1,
+    def __init__(self, orig_atom_fea_len, edge_feat_dim=64, name ='cgcnn',
+                 h_fea_len=128, atom_fea_len=64, n_conv=3, n_h=3,
                  robust_regression=False, classification=False,
                  quantile_regression=False,
                  pooling_type = 'mean_pool', num_classes=2,
-                 additional_compound_features=False, add_feat_len=146):
+                 additional_compound_features=False, add_feat_len=None):
         """
         Initialize CGCNN_PyG.
 
@@ -94,7 +94,8 @@ class CGCNN_PyG(nn.Module):
         self.quantile_regression = quantile_regression
         self.global_pooling = pooling_type
         self.additional_compound_features = additional_compound_features
-        self.add_feat_len=add_feat_len
+        if self. additional_compound_features:
+            self.add_feat_len=add_feat_len
         
         self.embedding = nn.Linear(orig_atom_fea_len, atom_fea_len)
 
@@ -167,13 +168,18 @@ class CGCNN_PyG(nn.Module):
     
     def extract_crystal_repr(self, data):
         """Extract crystal representations"""
-        x, edge_index, edge_attr, batch = data.x, data.edge_index, data.edge_attr, data.batch
+        if self.additional_compound_features:
+            x, edge_index, edge_attr, batch, add_feat, y = data.x, data.edge_index, data.edge_attr, data.batch, data.additional_compound_features, data.y
+            add_feat = add_feat.view(-1, self.add_feat_len)
+        else:
+            x, edge_index, edge_attr, batch = data.x, data.edge_index, data.edge_attr, data.batch
 
         x = self.embedding(x)
+        edge_attr = self.rbf(edge_attr.view(-1))
 
         for conv in self.convs:
             x = conv(x, edge_index, edge_attr)
-        if(self.global_pooling =='mean_pool'):
+        if(self.global_pooling =='mean_pool'):    
             x = global_mean_pool(x, batch)
         return x
 
