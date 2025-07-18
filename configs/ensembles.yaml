@@ -1,6 +1,6 @@
 # Ensemble models Configuration
 data:
-    root_dir: data/cgcnn_junwen_july_3_kdist
+    root_dir: data/cgcnn_data_mp_metal_nonmetal
     id_prop_csv: id_prop.csv
     random_seed: 42
     train_ratio: 0.8
@@ -9,7 +9,7 @@ data:
     save_features: true
 
 model:
-    model_name: GB # RF, GB, HGB
+    model_name: RF # RF, GB, HGB
     random_seed: 42
     n_estimators: 100
     learning_rate: 0.05
@@ -29,7 +29,7 @@ model:
         n_max: 8
         l_max: 6
         sigma: 1.0
-    classification: false
+    classification: true
     quantile_regression: false
     quantile: 0.9
     
