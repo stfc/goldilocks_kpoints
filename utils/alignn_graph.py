@@ -1,25 +1,17 @@
 import numpy as np
-import json
-from typing import Dict
+from typing import List
 from pymatgen.core.structure import Structure
 import torch
 from torch_geometric.data import Data
 import warnings
 
-def load_atom_features(atom_init_path: str) -> Dict:
-    """Load atomic embedding file (traditionally keys are atomic numbers)"""
-    with open(atom_init_path, 'r') as f:
-        data = json.load(f)
-    return data
-
 
 def build_alignn_graph_with_angles_from_structure(structure: Structure, 
-                                                  atom_features_dict: Dict,
+                                                  atom_features: List,
                                                   radius: float = 10.0,
                                                   max_neighbors: int = 12):
     """
     Generate ALIGNN-style atomic graph and line graph with angle (cosine) features.
-
     Returns:
         g: atomic PyG graph with node & edge features
         lg: line graph with angle cosines as edge features
@@ -53,7 +45,7 @@ def build_alignn_graph_with_angles_from_structure(structure: Structure,
             f"{len(disconnected_atoms)} atoms had no neighbors within radius {radius}. "
         )
 
-    x = torch.tensor([atom_features_dict[str(site.specie.number)] for site in structure], dtype=torch.float32)
+    x = torch.tensor(atom_features, dtype=torch.float32)
     edge_index = torch.tensor(edge_index, dtype=torch.long).t().contiguous()
     edge_attr = torch.tensor(edge_attr, dtype=torch.float32)
     edge_vecs = torch.tensor(edge_vecs, dtype=torch.float32)

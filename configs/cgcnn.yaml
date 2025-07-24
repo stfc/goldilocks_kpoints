@@ -10,18 +10,14 @@ train:
   version: '1.0'
 
 data:
-  additional_compound_features: is_metal_cgcnn # is_metal_cgcnn, magpie, lattice
-  additional_atom_features: null # soap
-  root_dir: data/cgcnn_junwen_july_3_kdist          # cgcnn_data_mp_metal_nonmetal       #cgcnn_junwen_july_3_kdist
+  # general data specs
+  root_dir: data/test_regression    # cgcnn_data_mp_metal_nonmetal    #cgcnn_junwen_july_3_kdist
   model_name: cgcnn
   id_prop_csv: id_prop.csv
-  checkpoint_path: trained_models/cgcnn/is_metal_nh2/is_metal.ckpt
-  data_file: data/cgcnn_data_mp_metal_nonmetal/mp_metal_nonmetal_no_structural_duplicates.pkl
-  features_file: embeddings/atom_init_original.json
   train_ratio: 0.8
   val_ratio: 0.1
   test_ratio: 0.1
-  lmdb_exist: true
+  lmdb_exist: false
   lmdb_test_name: test_data.lmdb
   lmdb_train_name: train_data.lmdb
   lmdb_val_name: val_data.lmdb
@@ -33,11 +29,41 @@ data:
   random_seed: 42
   stratify: false
   scale_y: false
-  soap_params: null
-  #   r_cut: 10.0
-  #   n_max: 8
-  #   l_max: 6
-  #   sigma: 1.0
+  # compound features specs
+  compound_features:
+    data_file: null
+    additional_compound_features: null # ['composition features'] 
+    composition_features:
+      ElementProperty: true
+      Stoichiometry: true
+      ValenceOrbital: true
+      IonProperty: false
+      AtomicOrbitals: false
+    structure_features:
+      GlobalSymmetryFeatures: true
+      DensityFeatures: true
+    jarvis_features: false
+    soap_features: false
+    soap_params: 
+      r_cut: 10.0
+      n_max: 8
+      l_max: 6
+      sigma: 1.0
+    lattice_features: false
+    cgcnn_features: false
+    checkpoint_path: trained_models/cgcnn/is_metal_nh2/is_metal.ckpt
+    feat_lmdb_exist: false
+    feature_file: null
+  # atomic features specs
+  atomic_features:
+    atom_feature_strategy:
+      atom_feature_file: embeddings/atom_init_original.json # cgcnn_original
+      soap_atomic: false
+    soap_params: 
+      r_cut: 10.0
+      n_max: 8
+      l_max: 6
+      sigma: 1.0
 
 model:  #clarify the question of weight initialization in lightning and random_seed for that
   name: cgcnn
@@ -46,17 +72,18 @@ model:  #clarify the question of weight initialization in lightning and random_s
   orig_atom_fea_len: 92
   edge_feat_dim: 64
   atom_fea_len: 64
-  n_h: 3
+  n_h: 1
   robust_regression: true
   quantile_regression: false
+  num_quantiles: 1 # 1 for QuantileLoss, 2 for IntervalScoreLoss
   classification: false
   num_classes: 2
   pooling_type: 'mean_pool' # other possibilities : ..
-  additional_compound_features: true
+  additional_compound_features: false
   add_feat_len: 64
 
 loss:
-  name: RobustL2Loss # RobustL2Loss, RobustL1Loss, QuantileLoss, CrossEntropyLoss, HuberLoss, L1Loss, MSELoss, StudentTloss
+  name: RobustL2Loss # RobustL2Loss, RobustL1Loss, QuantileLoss, CrossEntropyLoss, HuberLoss, L1Loss, MSELoss, StudentTloss, IntervalScoreLoss
   quantile: 0.9 # for quantile regression
   student_nu: 5
 

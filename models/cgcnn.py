@@ -63,7 +63,7 @@ class CGCNN_PyG(nn.Module):
     def __init__(self, orig_atom_fea_len, edge_feat_dim=64, name ='cgcnn',
                  h_fea_len=128, atom_fea_len=64, n_conv=3, n_h=3,
                  robust_regression=False, classification=False,
-                 quantile_regression=False,
+                 quantile_regression=False, num_quantiles = 1,
                  pooling_type = 'mean_pool', num_classes=2,
                  additional_compound_features=False, add_feat_len=None):
         """
@@ -88,10 +88,14 @@ class CGCNN_PyG(nn.Module):
         super().__init__()
         self.name=name
         self.classification = classification
-        if classification:
-            self.num_classes = num_classes
         self.robust_regression = robust_regression
         self.quantile_regression = quantile_regression
+
+        if classification:
+            self.num_classes = num_classes
+        elif quantile_regression:
+            self.num_quantiles = num_quantiles
+
         self.global_pooling = pooling_type
         self.additional_compound_features = additional_compound_features
         if self. additional_compound_features:
@@ -127,7 +131,7 @@ class CGCNN_PyG(nn.Module):
         elif self.robust_regression:
             self.fc_out = nn.Linear(h_fea_len, 2)
         elif self.quantile_regression:
-            self.fc_out = nn.Linear(h_fea_len, 1)
+            self.fc_out = nn.Linear(h_fea_len, self.num_quantiles)
         else:
             self.fc_out = nn.Linear(h_fea_len, 1)
         
