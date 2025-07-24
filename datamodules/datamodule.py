@@ -53,6 +53,11 @@ class GNNDataModule(L.LightningDataModule):
         self.lmdb_train_name = lmdb_train_name
         self.lmdb_val_name = lmdb_val_name
         self.lmdb_test_name = lmdb_test_name
+        self.test_ratio = test_ratio
+        self.val_ratio = val_ratio
+        self.train_ratio = train_ratio
+        self.random_seed = random_seed
+        self.lmdb_exist = lmdb_exist
 
         self.atomic_features = atomic_features
         self.compound_features = compound_features
@@ -77,11 +82,11 @@ class GNNDataModule(L.LightningDataModule):
                                  'composition': compositions})
             list_of_feat=[]
             if 'composition_features' in self.compound_features['additional_compound_features']:
-                specs = [k for k, v in self.compound_features['additional_compound_features']['composition_features'].items() if v]
+                specs = [k for k, v in self.compound_features['composition_features'].items() if v]
                 composition_features = matminer_composition_features(df, specs)
                 list_of_feat.append(composition_features)
             if 'structure_features' in self.compound_features['additional_compound_features']:
-                specs = [k for k, v in self.compound_features['additional_compound_features']['structure_features'].items() if v]
+                specs = [k for k, v in self.compound_features['structure_features'].items() if v]
                 structure_features = matminer_structure_features(df, specs)
                 list_of_feat.append(structure_features)
             if 'soap_features' in self.compound_features['additional_compound_features']:
@@ -94,25 +99,26 @@ class GNNDataModule(L.LightningDataModule):
                 jarvis = jarvis_features(df)
                 list_of_feat.append(jarvis)
             if 'cgcnn_features' in self.compound_features['additional_compound_features']:
-                cgcnn_f = cgcnn_features(root_dir, 
-                                         self.compound_features['checkpoint_path'], 
+                cgcnn_f = cgcnn_features(self.compound_features['checkpoint_path'], 
+                                         root_dir,
                                          lmdb_exist=self.compound_features['feat_lmdb_exist'])
                 list_of_feat.append(cgcnn_f)
-                additional_features_df=pd.DataFrame(np.concatenate(list_of_feat))
+            additional_features_df=pd.DataFrame(np.concatenate(list_of_feat,axis=1))
 
-       
-        if test_ratio == 1.0:
+        print(f'test_ratio {self.test_ratio}')
+
+        if self.test_ratio == 1.0:
             train_idx=[]
             val_idx=[]
             test_idx=data.index.values
-        elif 0.0 < test_ratio < 1.0 and 0.0 < train_ratio < 1.0:
+        elif 0.0 < self.test_ratio < 1.0 and 0.0 < self.train_ratio < 1.0:
             if stratify:
                 y=data[1].values
-                train_idx, test_idx, y_train, _ = train_test_split(data.index.values, y, test_size=test_ratio, stratify=y, random_state=random_seed)
-                train_idx, val_idx, _, _ = train_test_split(train_idx, y_train, train_size=train_ratio/(1-test_ratio), stratify=y_train,random_state=random_seed)
+                train_idx, test_idx, y_train, _ = train_test_split(data.index.values, y, test_size=self.test_ratio, stratify=y, random_state=random_seed)
+                train_idx, val_idx, _, _ = train_test_split(train_idx, y_train, train_size=self.train_ratio/(1-self.test_ratio), stratify=y_train,random_state=self.random_seed)
             else:
-                train_idx, test_idx = train_test_split(data.index.values, test_size=test_ratio, random_state=random_seed)
-                train_idx, val_idx = train_test_split(train_idx, train_size=train_ratio/(1-test_ratio), random_state=random_seed)
+                train_idx, test_idx = train_test_split(data.index.values, test_size=self.test_ratio, random_state=random_seed)
+                train_idx, val_idx = train_test_split(train_idx, train_size=self.train_ratio/(1-self.test_ratio), random_state=self.random_seed)
         else:
             raise ValueError("Invalid test_ratio or train_ratio. Ensure 0 < train_ratio, test_ratio < 1, or test_ratio == 1.0.")
 
@@ -131,13 +137,13 @@ class GNNDataModule(L.LightningDataModule):
 
         list_of_paths=[self.lmdb_train_name, self.lmdb_val_name, self.lmdb_test_name]
         
-        if(lmdb_exist == False):
-            if os.path.exists(os.path.join(root_dir,'train_data.lmdb')):
-                shutil.rmtree(os.path.join(root_dir,'train_data.lmdb'))
-            if os.path.exists(os.path.join(root_dir,'val_data.lmdb')):
-                shutil.rmtree(os.path.join(root_dir,'val_data.lmdb'))
-            if os.path.exists(os.path.join(root_dir,'test_data.lmdb')):
-                shutil.rmtree(os.path.join(root_dir,'test_data.lmdb'))
+        if(self.lmdb_exist == False):
+            if os.path.exists(os.path.join(root_dir,self.lmdb_train_name)):
+                shutil.rmtree(os.path.join(root_dir,self.lmdb_train_name))
+            if os.path.exists(os.path.join(root_dir,self.lmdb_val_name)):
+                shutil.rmtree(os.path.join(root_dir,self.lmdb_val_name))
+            if os.path.exists(os.path.join(root_dir,self.lmdb_test_name)):
+                shutil.rmtree(os.path.join(root_dir,self.lmdb_test_name))
             if(self.compound_features['additional_compound_features'] is not None): 
                     create_lmdb_database(train, self.lmdb_train_name, root_dir, self.atomic_features,\
                                  radius=self.radius,max_neighbors=self.max_neighbors, model=self.model,\
