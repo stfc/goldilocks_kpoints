@@ -38,6 +38,8 @@ def neural_networks(**config):
     
         truth=[]
         prediction=[]
+        pred_low=[]
+        pred_high=[]
         if config['model']['robust_regression']:
             logstd=[]
         elif config['model']['classification']:
@@ -55,6 +57,11 @@ def neural_networks(**config):
                 truth.append(pred[idx][2])
                 probs.append(pred[idx][1])
                 test_ids+=pred[idx][3]
+            elif config['model']['quantile_regression'] and config['loss']['name'] == 'IntervalScoreLoss':
+                pred_low.append(pred[idx][0])
+                pred_high.append(pred[idx][1])
+                truth.append(pred[idx][2])
+                test_ids+=pred[idx][3]
             else:
                 prediction.append(pred[idx][0])
                 truth.append(pred[idx][1])
@@ -68,37 +75,57 @@ def neural_networks(**config):
             truth=torch.cat(truth,dim=0).squeeze(-1)
             prediction=torch.cat(prediction,dim=0).squeeze(-1)
             probs=torch.cat(probs,dim=0).squeeze(-1)
+        elif config['model']['quantile_regression'] and config['loss']['name'] == 'IntervalScoreLoss':
+            truth=torch.cat(truth,dim=0).squeeze(-1)
+            pred_low=torch.cat(pred_low,dim=0).squeeze(-1)
+            pred_high=torch.cat(pred_high,dim=0).squeeze(-1)
         else:
             truth=torch.cat(truth,dim=0).squeeze(-1)
             prediction=torch.cat(prediction,dim=0).squeeze(-1)
-
-        df['id']=np.array(test_ids)
-        df['truth_scaled']=truth
-        df['prediction'+str(i)]=prediction
-        if config['model']['robust_regression']:
-            df['logstd'+str(i)]=logstd
+        
+        if config['model']['quantile_regression'] and config['loss']['name'] == 'IntervalScoreLoss':
+            df['id']=np.array(test_ids)
+            df['truth']=truth
+            df['pred_low'+str(i)]=pred_low
+            df['pred_high'+str(i)]=pred_high
+        else:
+            df['id']=np.array(test_ids)
+            df['truth_scaled']=truth
+            df['prediction'+str(i)]=prediction
+            if config['model']['robust_regression']:
+                df['logstd'+str(i)]=logstd
 
     num=len(list_of_checkpoints)
-    prediction_list=[]
-    for i in range(num):
-        prediction_list.append('prediction'+str(i))
+    if config['model']['quantile_regression'] and config['loss']['name'] == 'IntervalScoreLoss':
+        prediction_list_low=[]
+        prediction_list_high=[]
+        for i in range(num):
+            prediction_list_low.append('pred_low'+str(i))
+            prediction_list_high.append('pred_high'+str(i))
 
-    df["avg_prediction_scaled"] = df[prediction_list].mean(axis=1)
-    truth = truth
-    prediction = df["avg_prediction_scaled"].values
-    
-    if config['data']['scale_y']:
-        scaler = RobustScaler()
-        data = pd.read_csv(os.path.join(config['data']['root_dir'],config['data']['id_prop_csv']),header=None)
-        y=np.array(data[1].values).reshape(-1, 1)
-        scaler = scaler.fit(y)
-        prediction = scaler.inverse_transform(prediction.reshape(-1, 1)).reshape(len(prediction))
-        df['prediction'] = prediction
-        truth = scaler.inverse_transform(truth.reshape(-1, 1)).reshape(len(truth))
-        df['truth'] = truth
+        df["avg_pred_low"] = df[prediction_list_low].mean(axis=1)
+        df["avg_pred_high"] = df[prediction_list_high].mean(axis=1)
     else:
-        df['prediction'] = prediction
-        df['truth'] = truth
+        prediction_list=[]
+        for i in range(num):
+            prediction_list.append('prediction'+str(i))
+
+        df["avg_prediction_scaled"] = df[prediction_list].mean(axis=1)
+        truth = truth
+        prediction = df["avg_prediction_scaled"].values
+        
+        if config['data']['scale_y']:
+            scaler = RobustScaler()
+            data = pd.read_csv(os.path.join(config['data']['root_dir'],config['data']['id_prop_csv']),header=None)
+            y=np.array(data[1].values).reshape(-1, 1)
+            scaler = scaler.fit(y)
+            prediction = scaler.inverse_transform(prediction.reshape(-1, 1)).reshape(len(prediction))
+            df['prediction'] = prediction
+            truth = scaler.inverse_transform(truth.reshape(-1, 1)).reshape(len(truth))
+            df['truth'] = truth
+        else:
+            df['prediction'] = prediction
+            df['truth'] = truth
 
     df.to_csv(args.output_name)
 
@@ -114,6 +141,8 @@ def neural_networks(**config):
         print(f'Test set f1_score: {f1}')
         print(f'Test set mcc: {mcc}')
         print(f'Test set confusion matrix: {cm}')
+    elif config['model']['quantile_regression'] and config['loss']['name'] == 'IntervalScoreLoss':
+        print('no metrics for IntervalScoreLoss yet')
     else:
         mse = mean_squared_error(truth,prediction)
         mae = mean_absolute_error(truth,prediction)
@@ -171,16 +200,16 @@ if __name__ == "__main__":
                         default="cgcnn.yaml",
                         help="Provide the experiment configuration file")
     parser.add_argument("--checkpoint_path",
-                        default="trained_models/cgcnn/l1robust_lattice_features/",
+                        default="trained_models/cgcnn/intervalscoreloss/",
                         help="Provide the path to model checkpoint")
     parser.add_argument("--output_name",
-                        default="output/cgcnn/l1robust_lattice_features.csv",
+                        default="output/CGCNN/intervalscore.csv",
                         help="Provide the path to save predictions")
     parser.add_argument("--ensemble_model_save_name",
-                        default="GB_basic.pkl",
+                        default="RF_is_metal.pkl",
                         help="Provide the path to save predictions")
     parser.add_argument("--ensemble_model_save_path",
-                        default="trained_models/GB/",
+                        default="trained_models/RF/",
                         help="Provide the path to save predictions")
 
     args = parser.parse_args(sys.argv[1:])

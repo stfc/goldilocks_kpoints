@@ -30,15 +30,20 @@ if __name__ == "__main__":
     path_config = Path(__file__).resolve().parent.parent / "configs" / args.config_file
     config = load_yaml_config(path_config)
     
-
     path_mlf_logger = Path(__file__).resolve().parent.parent / 'mlruns'
     mlf_logger = MLFlowLogger(experiment_name=config['train']['experiment_name'], \
                               run_name=config['train']['run_name'], \
                               tags={"version": config['train']['version']}, \
                               save_dir=path_mlf_logger, \
                               log_model=False)
+    
     data = GNNDataModule(**config['data'])
     config['data']['lmdb_exist']=True
+    print('-----------------------------------------')
+    print(f'atomic features: {config["data"]["atomic_features"]}')
+    print('-----------------------------------------')
+    print(f'compound features: {config["data"]["compound_features"]}')
+    print('-----------------------------------------')
     model = GNNModel(**config)
     
     if(config['model']['name'] == 'cgcnn'):

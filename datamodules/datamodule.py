@@ -1,19 +1,24 @@
 import pandas as pd
 import pytorch_lightning as L
+import numpy as np
 import os
 import shutil
-from .lmdb_dataset import load_atom_features, create_lmdb_database, LMDBPyGDataset
+from datamodules.lmdb_dataset import create_lmdb_database, LMDBPyGDataset
 from sklearn.model_selection import train_test_split
 import pickle as pk
 from torch.utils.data import DataLoader
-from .cgcnn_graph import create_magpie_features, create_is_metal_cgcnn_features, create_structure_features
-
+from pymatgen.core.structure import Structure
+from pymatgen.core.composition import Composition
+from utils.compound_features_utils import matminer_composition_features, matminer_structure_features
+from utils.compound_features_utils import soap_features, jarvis_features, lattice_features, cgcnn_features
+from utils.atom_features_utils import atom_features_from_structure
 
 class GNNDataModule(L.LightningDataModule):
+    """ Datamodule for neural network models (CGCNN, ALIGNN)
+    """
     def __init__(self, root_dir: str,
                  model_name: str,
                  id_prop_csv: str,
-                 features_file: str,
                  train_ratio = 0.8,
                  val_ratio = 0.1, 
                  test_ratio = 0.1,
@@ -23,15 +28,16 @@ class GNNDataModule(L.LightningDataModule):
                  lmdb_test_name = 'test_data.lmdb',
                  batch_size = 64,
                  graph_params = None,
-                 pin_memory = True,
-                 random_seed = 123,
+                 pin_memory = False,
+                 random_seed = 42,
                  stratify = False,
-                 soap_params = None,
-                 additional_compound_features = None,
-                 additional_atom_features = None,
-                 checkpoint_path = None,
-                 data_file = None,
-                 scale_y = False):
+                 scale_y = False,
+                 compound_features = {'additional_compound_features': None,
+                                      'checkpoint_path': None,
+                                      'data_file': None,
+                                      'soap_params': {'r_cut': 10.0, 'n_max': 8, 'l_max': 6, 'sigma': 1.0}},
+                 atomic_features = {'atomic_features_strategy': {'atom_feature_file': 'embeddings/atom_init_original.json',
+                                                                 'soap_atomic': False}}):
         super().__init__() 
 
         self.random_seed=random_seed
@@ -44,30 +50,62 @@ class GNNDataModule(L.LightningDataModule):
         else:
             self.max_neighbors = 12
             self.radius = 10.0
-        self.additional_compound_features = additional_compound_features
-        self.additional_atom_features = additional_atom_features
         self.lmdb_train_name = lmdb_train_name
         self.lmdb_val_name = lmdb_val_name
         self.lmdb_test_name = lmdb_test_name
-        self.soap_params = soap_params
 
-        atom_features_dict = load_atom_features(features_file)
-        
-        if(self.additional_compound_features == 'magpie'):
-            df=pd.read_pickle(data_file)
-            additional_features_df = create_magpie_features(df, formula_column = 'Formula')
-        elif(self.additional_compound_features == 'is_metal_cgcnn'):
-            additional_features_df = create_is_metal_cgcnn_features(root_dir, checkpoint_path)
-        elif(self.additional_compound_features == 'lattice'):
-            df=pd.read_pickle(data_file)
-            additional_features_df = create_structure_features(df, structure_column = 'structure')
-        
+        self.atomic_features = atomic_features
+        self.compound_features = compound_features
+
         data = pd.read_csv(os.path.join(root_dir, id_prop_csv), header=None)
-        if(test_ratio == 1.0):
+
+        if(self.compound_features['additional_compound_features'] is not None):
+            if self.compound_features['data_file'] is not None:
+                df=pd.read_pickle(os.path.join(root_dir, self.compound_features['data_file']))
+            else:
+                structures = []
+                formulas = []
+                compositions = []
+                for i in data[0].values:
+                    struct=Structure.from_file(os.path.join(root_dir,str(i)+'.cif'))
+                    structures.append(struct)
+                    formulas.append(struct.formula)
+                    compositions.append(Composition(struct.formula))
+                df=pd.DataFrame({'id': data[0].values,
+                                 'structure': structures,
+                                 'formula': formulas,
+                                 'composition': compositions})
+            list_of_feat=[]
+            if 'composition_features' in self.compound_features['additional_compound_features']:
+                specs = [k for k, v in self.compound_features['additional_compound_features']['composition_features'].items() if v]
+                composition_features = matminer_composition_features(df, specs)
+                list_of_feat.append(composition_features)
+            if 'structure_features' in self.compound_features['additional_compound_features']:
+                specs = [k for k, v in self.compound_features['additional_compound_features']['structure_features'].items() if v]
+                structure_features = matminer_structure_features(df, specs)
+                list_of_feat.append(structure_features)
+            if 'soap_features' in self.compound_features['additional_compound_features']:
+                soap = soap_features(df, soap_params=self.compound_features['soap_params'])
+                list_of_feat.append(soap)
+            if 'lattice_features' in self.compound_features['additional_compound_features']:
+                lattice = lattice_features(df)
+                list_of_feat.append(lattice)
+            if 'jarvis_features' in self.compound_features['additional_compound_features']:
+                jarvis = jarvis_features(df)
+                list_of_feat.append(jarvis)
+            if 'cgcnn_features' in self.compound_features['additional_compound_features']:
+                cgcnn_f = cgcnn_features(root_dir, 
+                                         self.compound_features['checkpoint_path'], 
+                                         lmdb_exist=self.compound_features['feat_lmdb_exist'])
+                list_of_feat.append(cgcnn_f)
+                additional_features_df=pd.DataFrame(np.concatenate(list_of_feat))
+
+       
+        if test_ratio == 1.0:
             train_idx=[]
             val_idx=[]
             test_idx=data.index.values
-        elif(test_ratio<1.0 and test_ratio>0.0 and train_ratio<1.0 and train_ratio>0.0):
+        elif 0.0 < test_ratio < 1.0 and 0.0 < train_ratio < 1.0:
             if stratify:
                 y=data[1].values
                 train_idx, test_idx, y_train, _ = train_test_split(data.index.values, y, test_size=test_ratio, stratify=y, random_state=random_seed)
@@ -76,7 +114,7 @@ class GNNDataModule(L.LightningDataModule):
                 train_idx, test_idx = train_test_split(data.index.values, test_size=test_ratio, random_state=random_seed)
                 train_idx, val_idx = train_test_split(train_idx, train_size=train_ratio/(1-test_ratio), random_state=random_seed)
         else:
-            print('Wrong test_ratio or train_ratio parameters')
+            raise ValueError("Invalid test_ratio or train_ratio. Ensure 0 < train_ratio, test_ratio < 1, or test_ratio == 1.0.")
 
         train = data.iloc[train_idx].reset_index(drop=True)
         val = data.iloc[val_idx].reset_index(drop=True)
@@ -86,7 +124,7 @@ class GNNDataModule(L.LightningDataModule):
         val.to_csv(os.path.join(root_dir, 'val.csv'), index=False,header=None)
         test.to_csv(os.path.join(root_dir, 'test.csv'), index=False,header=None)
 
-        if(self.additional_compound_features is not None):
+        if(self.compound_features['additional_compound_features'] is not None):
             train_add_feat=additional_features_df.iloc[train_idx].reset_index(drop=True)
             val_add_feat=additional_features_df.iloc[val_idx].reset_index(drop=True)
             test_add_feat=additional_features_df.iloc[test_idx].reset_index(drop=True)
@@ -100,45 +138,22 @@ class GNNDataModule(L.LightningDataModule):
                 shutil.rmtree(os.path.join(root_dir,'val_data.lmdb'))
             if os.path.exists(os.path.join(root_dir,'test_data.lmdb')):
                 shutil.rmtree(os.path.join(root_dir,'test_data.lmdb'))
-            if(self.additional_compound_features is not None):
-                if(self.additional_atom_features is not None):
-                    create_lmdb_database(train,self.lmdb_train_name, root_dir, atom_features_dict, \
-                                 radius=self.radius,max_neighbors=self.max_neighbors, model=self.model,\
-                                 additional_compound_features_df=train_add_feat, soap_params=self.soap_params)
-                    create_lmdb_database(val,self.lmdb_val_name, root_dir, atom_features_dict, \
-                                 radius=self.radius,max_neighbors=self.max_neighbors, model=self.model,\
-                                 additional_compound_features_df=val_add_feat, soap_params=self.soap_params)
-                    create_lmdb_database(test,self.lmdb_test_name, root_dir, atom_features_dict, \
-                                 radius=self.radius,max_neighbors=self.max_neighbors, model=self.model,\
-                                 additional_compound_features_df=test_add_feat, soap_params=self.soap_params)
-                else:
-                    create_lmdb_database(train,self.lmdb_train_name, root_dir, atom_features_dict, \
+            if(self.compound_features['additional_compound_features'] is not None): 
+                    create_lmdb_database(train, self.lmdb_train_name, root_dir, self.atomic_features,\
                                  radius=self.radius,max_neighbors=self.max_neighbors, model=self.model,\
                                  additional_compound_features_df=train_add_feat)
-                    create_lmdb_database(val,self.lmdb_val_name, root_dir, atom_features_dict, \
+                    create_lmdb_database(val,self.lmdb_val_name, root_dir, self.atomic_features,\
                                  radius=self.radius,max_neighbors=self.max_neighbors, model=self.model,\
                                  additional_compound_features_df=val_add_feat)
-                    create_lmdb_database(test,self.lmdb_test_name, root_dir, atom_features_dict, \
+                    create_lmdb_database(test,self.lmdb_test_name, root_dir, self.atomic_features,\
                                  radius=self.radius,max_neighbors=self.max_neighbors, model=self.model,\
                                  additional_compound_features_df=test_add_feat)
-
             else:
-                if(self.additional_atom_features is not None):
-                    create_lmdb_database(train,self.lmdb_train_name, root_dir, atom_features_dict, \
-                                 radius=self.radius,max_neighbors=self.max_neighbors, model=self.model,\
-                                 soap_params=self.soap_params)
-                    create_lmdb_database(val,self.lmdb_val_name, root_dir, atom_features_dict, \
-                                 radius=self.radius,max_neighbors=self.max_neighbors, model=self.model,\
-                                 soap_params=self.soap_params)
-                    create_lmdb_database(test,self.lmdb_test_name, root_dir, atom_features_dict, \
-                                 radius=self.radius,max_neighbors=self.max_neighbors, model=self.model,\
-                                 soap_params=self.soap_params)  
-                else:
-                    create_lmdb_database(train,self.lmdb_train_name, root_dir, atom_features_dict, \
+                    create_lmdb_database(train,self.lmdb_train_name, root_dir, self.atomic_features,\
                                  radius=self.radius,max_neighbors=self.max_neighbors, model=self.model)
-                    create_lmdb_database(val,self.lmdb_val_name, root_dir, atom_features_dict, \
+                    create_lmdb_database(val,self.lmdb_val_name, root_dir, self.atomic_features,\
                                  radius=self.radius,max_neighbors=self.max_neighbors, model=self.model)
-                    create_lmdb_database(test,self.lmdb_test_name, root_dir, atom_features_dict, \
+                    create_lmdb_database(test,self.lmdb_test_name, root_dir, self.atomic_features,\
                                  radius=self.radius,max_neighbors=self.max_neighbors, model=self.model)
                      
         elif not all(os.path.exists(os.path.join(root_dir,var)) for var in list_of_paths):

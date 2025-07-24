@@ -6,7 +6,7 @@ from models.alignn import ALIGNN_PyG
 from models.cgcnn import CGCNN_PyG
 import pytorch_lightning as L
 from datamodules.datamodule import GNNDataModule
-from utils.utils import count_parameters, RobustL2Loss, QuantileLoss, RobustL1Loss, StudentTLoss
+from utils.utils import count_parameters, RobustL2Loss, QuantileLoss, RobustL1Loss, StudentTLoss, IntervalScoreLoss
 from torch.nn import HuberLoss, CrossEntropyLoss, MSELoss, L1Loss
 import torch.optim as optim
 import torch
@@ -22,8 +22,8 @@ import os
 class GNNModel(L.LightningModule):
     def __init__(self, **config):
         super().__init__()
-        L.seed_everything(config['data']['random_seed'])
         self.save_hyperparameters()
+        L.seed_everything(config['data']['random_seed'])
         self.batch_size = config['data']['batch_size']
         self.learning_rate = config['optim']['learning_rate']
         self.momentum=config['optim']['momentum']
@@ -57,6 +57,7 @@ class GNNModel(L.LightningModule):
             print(f'Model size: {count_parameters(self.model)} parameters\n')
         
         print(self.model)
+        self.save_hyperparameters(config)
         # Defining the loss function 
         self.classification = config['model']['classification']
         self.robust_regression = config['model']['robust_regression']
@@ -91,7 +92,12 @@ class GNNModel(L.LightningModule):
 
         elif self.quantile_regression:
             quantile = config['loss']['quantile']
-            self.criterion = lambda output, target: QuantileLoss(output, target, quantile=quantile)
+            if self.loss_name == 'QuantileLoss':
+                print('Using QuantileLoss with q={quantile} for regression task')
+                self.criterion = lambda output, target: QuantileLoss(output, target, quantile=quantile)
+            elif self.loss_name == 'IntervalScoreLoss':
+                print('Using IntervalScoreLoss with q={quantile} for regression task')
+                self.criterion = lambda y_low, y_high, target: IntervalScoreLoss(y_low, y_high, target, quantile=quantile)
             
         else:
             if self.loss_name == 'HuberLoss':
@@ -143,6 +149,9 @@ class GNNModel(L.LightningModule):
             loss = self.criterion(prediction, log_std, target)
         elif self.classification:
             loss = self.criterion(output, target.long())
+        elif self.quantile_regression and self.loss_name == 'IntervalScoreLoss':
+            y_low, y_high = output.chunk(2, dim=-1)
+            loss = self.criterion(y_low, y_high, target)
         else:
             output = output.view(-1)
             loss = self.criterion(output, target)
@@ -162,6 +171,11 @@ class GNNModel(L.LightningModule):
         elif self.robust_regression:
             mse = mean_squared_error(target.cpu(),prediction.data.cpu())
             mae = mean_absolute_error(target.cpu(),prediction.data.cpu())
+            self.log("train_mse", float(mse), on_step=False, on_epoch=True, prog_bar=False, logger=True, batch_size=self.batch_size)
+            self.log("train_mae", float(mae), on_step=False, on_epoch=True, prog_bar=True, logger=True, batch_size=self.batch_size)
+        elif self.quantile_regression and self.loss_name == 'IntervalScoreLoss':
+            mse = mean_squared_error(target.cpu(),0.5*y_high.data.cpu()+0.5*y_low.data.cpu())
+            mae = mean_absolute_error(target.cpu(),0.5*y_high.data.cpu()+0.5*y_low.data.cpu())
             self.log("train_mse", float(mse), on_step=False, on_epoch=True, prog_bar=False, logger=True, batch_size=self.batch_size)
             self.log("train_mae", float(mae), on_step=False, on_epoch=True, prog_bar=True, logger=True, batch_size=self.batch_size)
         else:
@@ -186,6 +200,9 @@ class GNNModel(L.LightningModule):
             loss = self.criterion(prediction, log_std, target)
         elif self.classification:
             loss = self.criterion(output, target.long())
+        elif self.quantile_regression and self.loss_name == 'IntervalScoreLoss':
+            y_low, y_high = output.chunk(2, dim=-1)
+            loss = self.criterion(y_low, y_high, target)
         else:
             output = output.view(-1)
             loss = self.criterion(output, target)
@@ -205,6 +222,11 @@ class GNNModel(L.LightningModule):
         elif self.robust_regression:
             mse = mean_squared_error(target.cpu(),prediction.data.cpu())
             mae = mean_absolute_error(target.cpu(),prediction.data.cpu())
+            self.log("val_mse", float(mse), on_step=False, on_epoch=True, prog_bar=False, logger=True, batch_size=self.batch_size)
+            self.log("val_mae", float(mae), on_step=False, on_epoch=True, prog_bar=True, logger=True, batch_size=self.batch_size)
+        elif self.quantile_regression and self.loss_name == 'IntervalScoreLoss':
+            mse = mean_squared_error(target.cpu(),0.5*y_high.data.cpu()+0.5*y_low.data.cpu())
+            mae = mean_absolute_error(target.cpu(),0.5*y_high.data.cpu()+0.5*y_low.data.cpu())
             self.log("val_mse", float(mse), on_step=False, on_epoch=True, prog_bar=False, logger=True, batch_size=self.batch_size)
             self.log("val_mae", float(mae), on_step=False, on_epoch=True, prog_bar=True, logger=True, batch_size=self.batch_size)
         else:
@@ -229,6 +251,9 @@ class GNNModel(L.LightningModule):
             loss = self.criterion(prediction, log_std, target)
         elif self.classification:
             loss = self.criterion(output, target.long())
+        elif self.quantile_regression and self.loss_name == 'IntervalScoreLoss':
+            y_low, y_high = output.chunk(2, dim=-1)
+            loss = self.criterion(y_low, y_high, target)
         else:
             output = output.view(-1)
             loss = self.criterion(output, target)
@@ -250,6 +275,11 @@ class GNNModel(L.LightningModule):
             mae = mean_absolute_error(target.cpu(),prediction.data.cpu())
             self.log("test_mse", float(mse), on_step=False, on_epoch=True, prog_bar=False, logger=True, batch_size=self.batch_size)
             self.log("test_mae", float(mae), on_step=False, on_epoch=True, prog_bar=True, logger=True, batch_size=self.batch_size)
+        elif self.quantile_regression and self.loss_name == 'IntervalScoreLoss':
+            mse = mean_squared_error(target.cpu(),0.5*y_high.data.cpu()+0.5*y_low.data.cpu())
+            mae = mean_absolute_error(target.cpu(),0.5*y_high.data.cpu()+0.5*y_low.data.cpu())
+            self.log("val_mse", float(mse), on_step=False, on_epoch=True, prog_bar=False, logger=True, batch_size=self.batch_size)
+            self.log("val_mae", float(mae), on_step=False, on_epoch=True, prog_bar=True, logger=True, batch_size=self.batch_size)
         else:    
             mse = mean_squared_error(target.cpu(),output.data.cpu())
             mae = mean_absolute_error(target.cpu(),output.data.cpu())
@@ -275,6 +305,9 @@ class GNNModel(L.LightningModule):
             prediction, log_std = output.chunk(2, dim=-1) 
             std = torch.exp(log_std) 
             return prediction, std, target, idx
+        elif self.quantile_regression and self.loss_name == 'IntervalScoreLoss':
+            y_low, y_high = output.chunk(2, dim=-1)
+            return y_low, y_high, target, idx
         else:
             return output.data.cpu(), target, idx
 

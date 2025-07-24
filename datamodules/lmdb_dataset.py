@@ -9,8 +9,9 @@ from torch_geometric.data import Dataset, Batch
 import torch
 from typing import Dict
 from pymatgen.core.structure import Structure
-from .cgcnn_graph import build_pyg_cgcnn_graph_from_structure
-from .alignn_graph import build_alignn_graph_with_angles_from_structure
+from utils.cgcnn_graph import build_pyg_cgcnn_graph_from_structure
+from utils.alignn_graph import build_alignn_graph_with_angles_from_structure
+from utils.atom_features_utils import atom_features_from_structure
 
 import lmdb
 import pickle as pk
@@ -18,8 +19,8 @@ from torch_geometric.data import Dataset
 
 
 class LMDBPyGDataset(Dataset):
-    def __init__(self, lmdb_path, model='cgcnn', transform=None, pre_transform=None):
-        super().__init__(None, transform, pre_transform)
+    def __init__(self, lmdb_path, model='cgcnn'):
+        super().__init__()
         self.lmdb_path = lmdb_path
         self.model = model
 
@@ -63,21 +64,23 @@ def load_atom_features(atom_init_path: str) -> Dict:
         data = json.load(f)
     return data
 
+
 def create_lmdb_database(data, 
                          file_path, 
                          data_dir, 
-                         atom_features_dict,
+                         atomic_features,
                          radius=10.0,
                          max_neighbors=12, 
                          model="cgcnn",
-                         soap_params=None,
                          additional_compound_features_df=None):
     """Read all the structures, build atomic graphs and dump them into LMDB database
        data: DataFrame from id_prop.csv file
        file_path: location of LMDB database on the local disk
        data_dir: directory in which CIF files are located, CIF file names are 'idx.cif'
        atom_features_dict: dictionary with atomic features, keys are atomic numbers
-       model: 'cgcnn' or 'alignn'"""
+       model: 'cgcnn' or 'alignn'
+       soap_params: if you want to add soap atomic feature
+    """
 
     env = lmdb.open(os.path.join(data_dir, file_path), map_size=int(1e12))
 
@@ -85,12 +88,13 @@ def create_lmdb_database(data,
         for idx in range(len(data)):
             cif_path = os.path.join(data_dir, str(int(data.iloc[idx][0])) + '.cif')
             structure = Structure.from_file(cif_path)
+            atom_features = atom_features_from_structure(structure, atomic_features)
             label = torch.tensor(data.iloc[idx][1]).type(torch.get_default_dtype())
             sample_id = torch.tensor(int(data.iloc[idx][0]))
 
             if model == "alignn":
                 data_g, data_lg = build_alignn_graph_with_angles_from_structure(
-                    structure, atom_features_dict, radius=radius, max_neighbors=max_neighbors
+                    structure, atom_features, radius=radius, max_neighbors=max_neighbors
                 )
                 data_g.y = label
                 data_g.sample_id = sample_id
@@ -98,8 +102,7 @@ def create_lmdb_database(data,
                 serialized_data = pk.dumps((data_g, data_lg))
             elif model == "cgcnn":
                 data_g = build_pyg_cgcnn_graph_from_structure(
-                    structure, atom_features_dict, radius=radius, \
-                        max_neighbors=max_neighbors, soap_params=soap_params)
+                    structure, atom_features, radius=radius, max_neighbors=max_neighbors)
                 if additional_compound_features_df is not None:
                     additional_features = additional_compound_features_df.iloc[idx].values
                     additional_features = torch.tensor(additional_features).type(torch.get_default_dtype())

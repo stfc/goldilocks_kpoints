@@ -8,18 +8,11 @@ from sklearn.ensemble import RandomForestRegressor,RandomForestClassifier
 from sklearn.ensemble import GradientBoostingRegressor, GradientBoostingClassifier
 from sklearn.ensemble import HistGradientBoostingRegressor, HistGradientBoostingClassifier
 from sklearn.model_selection import train_test_split
-import matminer
-from matminer.featurizers.structure.composite import JarvisCFID
-from dscribe.descriptors import SOAP
-from pymatgen.io.ase import AseAtomsAdaptor
-from dscribe.descriptors import SOAP
-from matplotlib import pyplot as plt
-from matminer.datasets import load_dataset
-from matminer.featurizers.base import MultipleFeaturizer
-
 from pymatgen.core.composition import Composition
 from pymatgen.core.structure import Structure
 
+from utils.compound_features_utils import matminer_composition_features, matminer_structure_features
+from utils.compound_features_utils import soap_features, jarvis_features, lattice_features # maybe add cgcnn_features
 
 class Ensembles:
     def __init__(self, **config):
@@ -54,126 +47,65 @@ class Ensembles:
                                                            random_state =self.random_seed)
                                                         
         # defining features
-        self.composition_features = config['model']['composition_features']
-        self.structure_features = config['model']['structure_features']
-        self.jarvis_features = config['model']['jarvis_features']
-        self.soap_features = config['model']['soap_features']
-        self.soap_params = config['model']['soap_params']
+        self.feature_file = config['features']['feature_file']
+        self.composition_features = config['features']['composition_features']
+        self.structure_features = config['features']['structure_features']
+        self.jarvis_features = config['features']['jarvis_features']
+        self.soap_features = config['features']['soap_features']
+        self.soap_params = config['features']['soap_params']
+        self.lattice_features = config['features']['lattice_features']
         # self.is_metal = config['model']['is_metal']
         # self.is_metal_ckpt_path = config['data']['is_metal_ckpt_path']
-        
-        if self.composition_features is not None:
-            list_of_feat = [k for k, v in self.composition_features.items() if v]
-            list_of_feat_meth=[]
-            for feat in list_of_feat:
-                if hasattr(matminer.featurizers.composition, feat):
-                    if(feat=='ElementProperty'):
-                        method = getattr(matminer.featurizers.composition , feat).from_preset('magpie')
-                    else:
-                        method = getattr(matminer.featurizers.composition , feat)()
-                    list_of_feat_meth.append(method)
-            
-            # Use individual featurizers instead of MultipleFeaturizer to avoid argument passing issues
-            self.composition_featurizer = MultipleFeaturizer(list_of_feat_meth)
-
-        if self.structure_features is not None:
-            list_of_feat = [k for k, v in self.structure_features.items() if v]
-            list_of_feat_meth=[]
-            for feat in list_of_feat:
-                if(feat=='GlobalSymmetryFeatures'):
-                    props=["spacegroup_num", "crystal_system_int", "is_centrosymmetric"]
-                    method = getattr(matminer.featurizers.structure, feat)(props)
-                elif(feat=='DensityFeatures'):
-                    props=["density", "vpa", "packing fraction"]
-                    method = getattr(matminer.featurizers.structure, feat)(props)
-                list_of_feat_meth.append(method)
-            self.structure_featurizer = MultipleFeaturizer(list_of_feat_meth)
-
-        if self.jarvis_features:
-            self.jarvis_featurizer = JarvisCFID()
-
-        if self.soap_features:
-            self.soap_featurizer = SOAP(species=['X'],  # or whatever elements you're using
-                                        r_cut= self.soap_params['r_cut'],
-                                        n_max=self.soap_params['n_max'],
-                                        l_max=self.soap_params['l_max'],
-                                        sigma=self.soap_params['sigma'],
-                                        periodic=True,
-                                        sparse=False)
-
-         
+    
         self.train_ratio = config['data']['train_ratio']
         self.val_ratio = config['data']['val_ratio']
         self.test_ratio = config['data']['test_ratio']
         self.save_features = config['data']['save_features']
         self.path = config['data']['root_dir']
         
-        
         self.data = pd.read_csv(os.path.join(config['data']['root_dir'],config['data']['id_prop_csv']),header=None)
         structures=[]
         compositions=[]
+        formulas=[]
         for ind in self.data.index:
             struct = Structure.from_file(os.path.join(config['data']['root_dir'],str(ind)+'.cif'))
             comp = Composition(struct.formula)
             structures.append(struct)
             compositions.append(comp)
+            formulas.append(struct.formula)
         self.data['structure']=structures
         self.data['composition']=compositions
+        self.data['formula']=formulas
         
     def prep_data(self):
-        print('** Features are calculated **')
-        feature_len = 0
-        if self.composition_features is not None:
-            comp_feat_len = len(self.composition_featurizer.featurize(self.data.iloc[0]['composition']))
-            feature_len += comp_feat_len
+        if self.feature_file is not None:
+            self.features=np.load(os.path.join(self.path,self.feature_file))
+            print(f'** Features are loaded from feature file {os.path.join(self.path,self.feature_file)} **')
         else:
-            comp_feat_len=0
-        if self.structure_features is not None:
-            struct_feat_len = len(self.structure_featurizer.featurize(self.data.iloc[0]['structure']))
-            feature_len += struct_feat_len
-        else:
-            struct_feat_len=0
-        if self.jarvis_features:
-            jarvis_feat_len = len(self.jarvis_featurizer.featurize(self.data.iloc[0]['structure']))
-            feature_len += jarvis_feat_len 
-        else:
-            jarvis_feat_len=0
-        if self.soap_features:
-            atoms = AseAtomsAdaptor.get_atoms(self.data.iloc[0]['structure'])
-            atoms.set_chemical_symbols(["X"] * len(atoms))
-            soap=self.soap_featurizer.create(atoms).mean(axis=0)
-            soap_feat_len = len(soap)
-            feature_len += soap_feat_len
-        else:
-            soap_feat_len=0
-        print(f'feature length is {feature_len}...')
-        features=np.zeros((len(self.data),feature_len))
-        
-        if self.composition_features is not None:
-            for i,comp in enumerate(self.data['composition'].values):
-                features[i,:comp_feat_len]=self.composition_featurizer.featurize(comp)
-        if self.structure_features is not None:
-            for i, struct in enumerate(self.data['structure'].values):
-                try:
-                    features[i, comp_feat_len:comp_feat_len+struct_feat_len] = self.structure_featurizer.featurize(struct)
-                except Exception as e:
-                    print(f"Warning: Structure featurization failed for index {i}, formula {struct.formula} with error: {e}")
-                    features[i, comp_feat_len:comp_feat_len+struct_feat_len] = np.zeros(struct_feat_len)
-        if self.jarvis_features:
-            for i,struct in enumerate(self.data['structure'].values):
-                features[i,comp_feat_len+struct_feat_len:comp_feat_len+struct_feat_len+jarvis_feat_len]=\
-                    self.jarvis_featurizer.featurize(struct) 
-        if self.soap_features:
-            for i,struct in enumerate(self.data['structure'].values):
-                atoms = AseAtomsAdaptor.get_atoms(struct)
-                atoms.set_chemical_symbols(["X"] * len(atoms))
-                soap=self.soap_featurizer.create(atoms).mean(axis=0)
-                features[i,comp_feat_len+struct_feat_len+jarvis_feat_len:comp_feat_len+struct_feat_len+jarvis_feat_len+soap_feat_len]=soap
-        
-        features=np.nan_to_num(features, copy=True, nan=0.0, posinf=None, neginf=None)
-        self.features = features
-        if self.save_features:
-            np.save(os.path.join(self.path,'features.npy'), features)
+            print('** Features are calculated **')
+            
+            features_list = []
+            if self.composition_features is not None:
+                list_of_feat = [k for k, v in self.composition_features.items() if v]
+                composition_features = matminer_composition_features(self.data, list_of_feat)
+                features_list.append(composition_features)
+            if self.structure_features is not None:
+                list_of_feat = [k for k, v in self.structure_features.items() if v]
+                structure_features = matminer_structure_features(self.data, list_of_feat)
+                features_list.append(structure_features)
+            if self.soap_features:
+                soap_f = soap_features(self.data,self.soap_params)
+                features_list.append(soap_f)
+            if self.lattice_features:
+                lattice_f = lattice_features(self.data)
+                features_list.append(lattice_f)
+            if self.jarvis_features:
+                jarvis_f = jarvis_features(self.data)
+                features_list.append(jarvis_f)
+
+            self.features = np.concatenate(features_list, axis=1)
+            if self.save_features:
+                np.save(os.path.join(self.path,'features.npy'), self.features)
 
     def train_predict_model(self, save_model_path=None, save_model_name=None):
         print('** Model training **')
