@@ -1,7 +1,9 @@
 # Prediction of k-distance
-* How do you choose parameters for your DFT calculations? *
+* How do you choose parameters for your DFT calculations? 
 
 This package contains the code to find/train/evaluate the best model to predict k-dist for SCF total energy calculations with plan wave DFT codes for inorganic 3D materials. All models take as input the structure or/and composition of the compound and output k-dist, which is expected to guarantee convergence of total energy calculations and minimize the amount of computational time.
+
+This package is under development...
 
 ### Implemented models:
 1. CGCNN
@@ -31,13 +33,13 @@ As the baseline, we use a dummy model predicting k_dist=const, which is determin
 In high-throughput calculations, usually fixed k-dist is usually used for all compounds, which is fixed at a  relatively low value to guarantee convergence. Here we suggest using ML to predict kdist, which is closer to the real one, also minimizes the number of underconverged calculations, and through this saves compute. 
 
 ### Definition of convergence and dataset generation. 
-The definition of convergence and dataset generation was provided by Yunwen Yin.
+The definition of convergence and dataset generation was provided by Junwen Yin.
 
 All the data was generated with these parameters fixed:
 1. Quantum Espresso code
 2. SSSP1.3_PBESol_efficiency library of pseudopotentials
 3. Energy cutoffs are those recommended for SSSP1.3_PBESol_efficiency
-4. Cold smearing is used for all compounds with degauss=0.1Ry
+4. Cold smearing is used for all compounds with degauss=0.01 Ry
 5. All compounds are treated as non-magnetic
 
 The calculation is considered converged if the total energy change for the 3 consecutive k-meshes with increasing number of points is within 1meV/atom.
