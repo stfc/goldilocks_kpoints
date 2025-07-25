@@ -37,9 +37,12 @@ def matminer_composition_features(df: pd.DataFrame,
     for feat in list_of_features:
         if hasattr(matminer.featurizers.composition, feat):
             if(feat=='ElementProperty'):
-                method = getattr(matminer.featurizers.composition , feat).from_preset('magpie')
+                method = getattr(matminer.featurizers.composition , feat).from_preset('magpie', impute_nan=True)
             else:
-                method = getattr(matminer.featurizers.composition , feat)()
+                try:
+                    method = getattr(matminer.featurizers.composition , feat)(impute_nan=True)
+                except:
+                    method = getattr(matminer.featurizers.composition , feat)()
             list_of_feat_meth.append(method)
             
             # Use individual featurizers instead of MultipleFeaturizer to avoid argument passing issues
@@ -75,8 +78,12 @@ def matminer_structure_features(df: pd.DataFrame,
     structure_featurizer = MultipleFeaturizer(list_of_feat_meth)
     struct_feat_len = len(structure_featurizer.featurize(df.iloc[0][structure_column]))
     features=np.zeros((len(df),struct_feat_len))
-    for i,struct in enumerate(df[structure_column].values):
-        features[i,:]=structure_featurizer.featurize(struct)
+    for i, struct in enumerate(df[structure_column].values):
+        try:
+            features[i, :] = structure_featurizer.featurize(struct)
+        except Exception as e:
+            print(f"Warning: structure {struct.formula} at index {i} failed featurization: {e}")
+            features[i, :] = 0.0  # fallback: zeros
 
     features=np.nan_to_num(features, copy=True, nan=0.0, posinf=None, neginf=None)
     return features
@@ -185,7 +192,7 @@ def jarvis_features(df: pd.DataFrame,
     features=np.nan_to_num(features, copy=True, nan=0.0, posinf=None, neginf=None)
     return features
 
-def cgcnn_features(checkpoint_path: str, data_path: str, lmdb_exist: bool=True):
+def cgcnn_features(checkpoint_path: str, data_path: str, lmdb_exist: bool=False):
     """Create a dataframe with embeddings extracted from prevoiusly trained CGCNN model
     """
     from datamodules.datamodule import GNNDataModule
@@ -207,7 +214,7 @@ def cgcnn_features(checkpoint_path: str, data_path: str, lmdb_exist: bool=True):
                          graph_params=checkpoint['hyper_parameters']['data']['graph_params'],
                          random_seed = checkpoint['hyper_parameters']['data']['random_seed'],
                          compound_features = {'additional_compound_features': None},
-                         atomic_features = {'atomic_features_strategy': {'atom_feature_file': 'embeddings/atom_init_original.json',
+                         atomic_features = {'atom_feature_strategy': {'atom_feature_file': 'embeddings/atom_init_original.json',
                                                                          'soap_atomic': False}})
 
     model=CGCNN_PyG(**checkpoint['hyper_parameters']['model'])
