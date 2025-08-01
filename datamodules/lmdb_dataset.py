@@ -9,7 +9,7 @@ from torch_geometric.data import Dataset, Batch
 import torch
 from typing import Dict
 from pymatgen.core.structure import Structure
-from utils.cgcnn_graph import build_pyg_cgcnn_graph_from_structure
+from utils.cgcnn_graph import build_radius_cgcnn_graph_from_structure, build_crystalnn_cgcnn_graph_from_structure
 from utils.alignn_graph import build_alignn_graph_with_angles_from_structure
 from utils.atom_features_utils import atom_features_from_structure
 
@@ -72,6 +72,7 @@ def create_lmdb_database(data,
                          radius=10.0,
                          max_neighbors=12, 
                          model="cgcnn",
+                         graph_type="radius",
                          additional_compound_features_df=None):
     """Read all the structures, build atomic graphs and dump them into LMDB database
        data: DataFrame from id_prop.csv file
@@ -79,6 +80,7 @@ def create_lmdb_database(data,
        data_dir: directory in which CIF files are located, CIF file names are 'idx.cif'
        atom_features_dict: dictionary with atomic features, keys are atomic numbers
        model: 'cgcnn' or 'alignn'
+       graph_type: 'radius' or 'crystalnn'
        soap_params: if you want to add soap atomic feature
     """
 
@@ -101,8 +103,12 @@ def create_lmdb_database(data,
                 data_lg.sample_id = sample_id
                 serialized_data = pk.dumps((data_g, data_lg))
             elif model == "cgcnn":
-                data_g = build_pyg_cgcnn_graph_from_structure(
-                    structure, atom_features, radius=radius, max_neighbors=max_neighbors)
+                if graph_type == 'radius':
+                    data_g = build_radius_cgcnn_graph_from_structure(
+                        structure, atom_features, radius=radius, max_neighbors=max_neighbors)
+                elif graph_type == 'crystalnn':
+                    data_g = build_crystalnn_cgcnn_graph_from_structure(
+                        structure, atom_features, radius=radius)
                 if additional_compound_features_df is not None:
                     additional_features = additional_compound_features_df.iloc[idx].values
                     additional_features = torch.tensor(additional_features).type(torch.get_default_dtype())
