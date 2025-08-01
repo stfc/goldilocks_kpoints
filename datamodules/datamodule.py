@@ -47,9 +47,11 @@ class GNNDataModule(L.LightningDataModule):
         if graph_params is not None:
             self.max_neighbors = graph_params['max_neighbors']
             self.radius = graph_params['radius']
+            self.graph_type = graph_params['graph_type']
         else:
             self.max_neighbors = 12
             self.radius = 10.0
+            self.graph_type = 'radius'
         self.lmdb_train_name = lmdb_train_name
         self.lmdb_val_name = lmdb_val_name
         self.lmdb_test_name = lmdb_test_name
@@ -105,7 +107,7 @@ class GNNDataModule(L.LightningDataModule):
                 list_of_feat.append(cgcnn_f)
             additional_features_df=pd.DataFrame(np.concatenate(list_of_feat,axis=1))
 
-        print(f'test_ratio {self.test_ratio}')
+        print(f'test_ratio {self.test_ratio}, train_ratio {self.train_ratio}')
 
         if self.test_ratio == 1.0:
             train_idx=[]
@@ -147,20 +149,23 @@ class GNNDataModule(L.LightningDataModule):
             if(self.compound_features['additional_compound_features'] is not None): 
                     create_lmdb_database(train, self.lmdb_train_name, root_dir, self.atomic_features,\
                                  radius=self.radius,max_neighbors=self.max_neighbors, model=self.model,\
-                                 additional_compound_features_df=train_add_feat)
+                                 graph_type=self.graph_type,additional_compound_features_df=train_add_feat)
                     create_lmdb_database(val,self.lmdb_val_name, root_dir, self.atomic_features,\
                                  radius=self.radius,max_neighbors=self.max_neighbors, model=self.model,\
-                                 additional_compound_features_df=val_add_feat)
+                                 graph_type=self.graph_type,additional_compound_features_df=val_add_feat)
                     create_lmdb_database(test,self.lmdb_test_name, root_dir, self.atomic_features,\
                                  radius=self.radius,max_neighbors=self.max_neighbors, model=self.model,\
-                                 additional_compound_features_df=test_add_feat)
+                                 graph_type=self.graph_type,additional_compound_features_df=test_add_feat)
             else:
                     create_lmdb_database(train,self.lmdb_train_name, root_dir, self.atomic_features,\
-                                 radius=self.radius,max_neighbors=self.max_neighbors, model=self.model)
+                                 radius=self.radius,max_neighbors=self.max_neighbors, model=self.model,\
+                                 graph_type=self.graph_type)
                     create_lmdb_database(val,self.lmdb_val_name, root_dir, self.atomic_features,\
-                                 radius=self.radius,max_neighbors=self.max_neighbors, model=self.model)
+                                 radius=self.radius,max_neighbors=self.max_neighbors, model=self.model,\
+                                 graph_type=self.graph_type)
                     create_lmdb_database(test,self.lmdb_test_name, root_dir, self.atomic_features,\
-                                 radius=self.radius,max_neighbors=self.max_neighbors, model=self.model)
+                                 radius=self.radius,max_neighbors=self.max_neighbors, model=self.model,\
+                                 graph_type=self.graph_type)
                      
         elif not all(os.path.exists(os.path.join(root_dir,var)) for var in list_of_paths):
             print("Put lmdb_exist to False or provide train/val/test lmdb files.")

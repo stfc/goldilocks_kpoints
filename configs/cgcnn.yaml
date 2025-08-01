@@ -11,13 +11,13 @@ train:
 
 data:
   # general data specs
-  root_dir: data/test_regression    # cgcnn_data_mp_metal_nonmetal    #cgcnn_junwen_july_3_kdist
+  root_dir: data/cgcnn_junwen_july_3_kdist    # cgcnn_data_mp_metal_nonmetal    #cgcnn_junwen_july_3_kdist
   model_name: cgcnn
   id_prop_csv: id_prop.csv
   train_ratio: 0.8
   val_ratio: 0.1
   test_ratio: 0.1
-  lmdb_exist: false
+  lmdb_exist: true
   lmdb_test_name: test_data.lmdb
   lmdb_train_name: train_data.lmdb
   lmdb_val_name: val_data.lmdb
@@ -25,6 +25,7 @@ data:
   graph_params:
     radius: 10.0
     max_neighbors: 12
+    graph_type: 'crystalnn' # 'radius', 'crystalnn'
   pin_memory: false
   random_seed: 42
   stratify: false
@@ -51,8 +52,8 @@ data:
       sigma: 1.0
     lattice_features: false
     cgcnn_features: false
-    checkpoint_path: trained_models/cgcnn/is_metal_nh2/is_metal.ckpt
-    feat_lmdb_exist: false
+    checkpoint_path: trained_models/cgcnn/is_metal_nh3/is_metal.ckpt
+    feat_lmdb_exist: true
     feature_file: null
   # atomic features specs
   atomic_features:
@@ -83,7 +84,7 @@ model:  #clarify the question of weight initialization in lightning and random_s
   add_feat_len: 64
 
 loss:
-  name: RobustL2Loss # RobustL2Loss, RobustL1Loss, QuantileLoss, CrossEntropyLoss, HuberLoss, L1Loss, MSELoss, StudentTloss, IntervalScoreLoss
+  name: RobustL2Loss # RobustL2Loss, RobustL1Loss, QuantileLoss, CrossEntropyLoss, HuberLoss, L1Loss, MSELoss, StudentTLoss, IntervalScoreLoss
   quantile: 0.9 # for quantile regression
   student_nu: 5
 

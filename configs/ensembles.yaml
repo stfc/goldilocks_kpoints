@@ -1,6 +1,6 @@
 # Ensemble models Configuration
 data:
-    root_dir: data/cgcnn_data_mp_metal_nonmetal
+    root_dir: data/cgcnn_junwen_july_3_kdist
     id_prop_csv: id_prop.csv
     random_seed: 42
     train_ratio: 0.8
@@ -13,7 +13,7 @@ model:
     random_seed: 42
     n_estimators: 100
     learning_rate: 0.05
-    classification: true
+    classification: false
     quantile_regression: false
     quantile: 0.9
 
@@ -35,6 +35,9 @@ features:
         l_max: 6
         sigma: 1.0
     lattice_features: false
-    feature_file: null
+    cgcnn_features: true
+    checkpoint_path: trained_models/cgcnn/is_metal_nh3/is_metal.ckpt
+    lmdb_exist: true
+    feature_file: null #features.npy
 
     
