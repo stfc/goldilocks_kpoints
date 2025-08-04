@@ -36,6 +36,8 @@ setproctitle = "1.2"
 matminer = "^0.9.3"
 dscribe = "^2.1.1"
 lightgbm = "^4.6.0"
+transformers = "^4.54.1"
+robocrys = "^0.2.11"
 
 [tool.poetry.urls]
 Repository = "https://github.com/ddmms/k_points"

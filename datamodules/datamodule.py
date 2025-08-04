@@ -11,6 +11,7 @@ from pymatgen.core.structure import Structure
 from pymatgen.core.composition import Composition
 from utils.compound_features_utils import matminer_composition_features, matminer_structure_features
 from utils.compound_features_utils import soap_features, jarvis_features, lattice_features, cgcnn_features
+from utils.compound_features_utils import matscibert_features
 from utils.atom_features_utils import atom_features_from_structure
 
 class GNNDataModule(L.LightningDataModule):
@@ -19,6 +20,7 @@ class GNNDataModule(L.LightningDataModule):
     def __init__(self, root_dir: str,
                  model_name: str,
                  id_prop_csv: str,
+                 qe_input_files = None,
                  train_ratio = 0.8,
                  val_ratio = 0.1, 
                  test_ratio = 0.1,
@@ -105,6 +107,12 @@ class GNNDataModule(L.LightningDataModule):
                                          root_dir,
                                          lmdb_exist=self.compound_features['feat_lmdb_exist'])
                 list_of_feat.append(cgcnn_f)
+            if 'matscibert_features' in self.compound_features['additional_compound_features']:
+                if qe_input_files is not None:
+                    matscibert_f = matscibert_features(df=None, data_path = qe_input_files)
+                else:
+                    matscibert_f = matscibert_features(df=df)
+                list_of_feat.append(matscibert_f)
             additional_features_df=pd.DataFrame(np.concatenate(list_of_feat,axis=1))
 
         print(f'test_ratio {self.test_ratio}, train_ratio {self.train_ratio}')

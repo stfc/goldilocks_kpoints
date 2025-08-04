@@ -233,3 +233,124 @@ def cgcnn_features(checkpoint_path: str, data_path: str, lmdb_exist: bool=False)
         features=features.detach().numpy()
         df=pd.concat([df,pd.DataFrame(features)])
     return np.array(df)
+
+def remove_kpoints_section_robust(qe_input_text):
+    """
+    Removes kpoints section from qe input file
+    """
+    import re
+    
+    # Pattern to match K_POINTS section and everything until next section
+    # This handles automatic, crystal, gamma, etc.
+    pattern = r'K_POINTS\s+\w*\s*\n.*?(?=\n[A-Z_]+|\n&|\Z)'
+    
+    # Remove the K_POINTS section
+    result = re.sub(pattern, '', qe_input_text, flags=re.DOTALL | re.IGNORECASE)
+    
+    # Clean up any extra newlines
+    result = re.sub(r'\n\s*\n\s*\n', '\n\n', result)
+    
+    return result.strip()
+
+def matscibert_features(df: pd.DataFrame = None, structure_column = 'structure', data_path: str = None):
+    """Create embeddings of QE-input files without k-points with MatSciBert model"""
+    import math
+    import torch
+    from transformers import AutoTokenizer, AutoModel
+    from tokenizers.normalizers import BertNormalizer
+    from robocrys import StructureCondenser, StructureDescriber
+
+    def mean_pooling(hidden_states, attention_mask):
+        """Apply mean pooling to get fixed-size embedding"""
+        # Expand attention mask to match hidden states dimensions
+        input_mask_expanded = attention_mask.unsqueeze(-1).expand(hidden_states.size()).float()
+        
+        # Apply mask and compute mean
+        sum_embeddings = torch.sum(hidden_states * input_mask_expanded, 1)
+        sum_mask = torch.clamp(input_mask_expanded.sum(1), min=1e-9)
+    
+        return sum_embeddings / sum_mask
+    
+    def create_embedding(chunks, tokenizer, model):
+        """Create embedings using model/tokenizer pair"""
+        chunk_embeddings = []
+        for chunk in chunks:
+            tokenized_text = tokenizer(
+                    chunk, 
+                    max_length=chunk_length, 
+                    padding=True, 
+                    truncation=True,  # Add truncation
+                    return_tensors="pt"  # Return PyTorch tensors directly
+                )
+            with torch.no_grad():
+                outputs = model(**tokenized_text)
+                hidden_states = outputs.last_hidden_state  # [1, seq_len, 768]
+                # Pool to fixed size [1, 768]
+                pooled = mean_pooling(hidden_states, tokenized_text['attention_mask'])
+                chunk_embeddings.append(pooled)
+                
+        chunk_stack = torch.stack(chunk_embeddings)  # [num_chunks, 1, 768]
+        chunk_stack = chunk_stack.squeeze(1)  # [num_chunks, 768]
+        # Aggregate all chunks into final embedding
+        final_embedding = torch.mean(chunk_stack, dim=0)
+        return final_embedding
+    
+    norm = BertNormalizer(lowercase=False, strip_accents=True, clean_text=True, handle_chinese_chars=True)
+    tokenizer = AutoTokenizer.from_pretrained('m3rg-iitd/matscibert')
+    model = AutoModel.from_pretrained('m3rg-iitd/matscibert')   
+    ############################################################
+    # 1. if we to encode input files
+    if data_path is not None:
+        print('QE input files are used for matscibert input feature...')
+        list_of_files = os.listdir(data_path) 
+        embeddings=np.zeros((len(list_of_files),768))
+        for file_name in list_of_files:
+            with open(os.path.join(data_path, file_name),'r') as file:
+                text = file.read()
+                text=remove_kpoints_section_robust(text)
+            norm_text=norm.normalize_str(text)
+            chunks = []
+            chunk_length = 512
+            num_chunks = math.ceil(len(norm_text) / chunk_length)
+
+            for i in range(num_chunks):
+                chunks.append(norm_text[i*chunk_length:chunk_length*(1+i)])
+            final_embedding = create_embedding(chunks, tokenizer, model)
+            i=int(file_name[:-3])
+            embeddings[i,:]=final_embedding
+        ############################################################
+    # 2. incoding robocrystallographer structure description
+    if df is not None:
+        print('Robocrystallographer descriptions are used for matscibert features...')
+        embeddings=np.zeros((len(df),768))
+        for i,struct in enumerate(df[structure_column].values):
+            try:
+                condenser = StructureCondenser()
+                describer = StructureDescriber()
+
+                condensed_structure = condenser.condense_structure(struct)
+                description = describer.describe(condensed_structure)
+                norm_text = norm.normalize_str(description)
+
+                chunks = []
+                chunk_length = 512
+                num_chunks = math.ceil(len(norm_text) / chunk_length)
+
+                for i in range(num_chunks):
+                    chunks.append(norm_text[i*chunk_length:chunk_length*(1+i)])
+            except:
+                print(f'for structure {i} with formula {struct.formula} cif-file is used')
+                text = struct.to_file('.cif')
+                norm_text = norm.normalize_str(text)
+                chunks = []
+                chunk_length = 512
+                num_chunks = math.ceil(len(norm_text) / chunk_length)
+
+                for i in range(num_chunks):
+                    chunks.append(norm_text[i*chunk_length:chunk_length*(1+i)])
+
+            final_embedding = create_embedding(chunks, tokenizer, model)
+            embeddings[i,:]=final_embedding
+    features=embeddings.numpy()
+
+    return features
