@@ -51,6 +51,8 @@ The calculation is considered converged if the total energy change for the 3 con
 
 ### References:
 [1] Sheng Gong et al.,Examining graph neural networks for crystal structures: Limitations and opportunities for capturing periodicity.Sci.Adv.9,eadi3245(2023). DOI:10.1126/sciadv.adi3245
+
 [2] Gupta, T., Zaki, M., Krishnan, N.M.A. et al. MatSciBERT: A materials domain language model for text mining and information extraction. npj Comput Mater 8, 102 (2022). https://doi.org/10.1038/s41524-022-00784-w
+
 [3] Ganose, A., & Jain, A. (2019). Robocrystallographer: Automated crystal structure text descriptions and analysis. MRS Communications, 9(3), 874-881. https://doi.org/10.1557/mrc.2019.94
 
