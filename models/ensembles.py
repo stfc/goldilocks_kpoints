@@ -12,7 +12,8 @@ from pymatgen.core.composition import Composition
 from pymatgen.core.structure import Structure
 
 from utils.compound_features_utils import matminer_composition_features, matminer_structure_features
-from utils.compound_features_utils import soap_features, jarvis_features, lattice_features # maybe add cgcnn_features
+from utils.compound_features_utils import soap_features, jarvis_features, lattice_features, cgcnn_features 
+from utils.compound_features_utils import matscibert_features
 
 class Ensembles:
     def __init__(self, **config):
@@ -23,7 +24,8 @@ class Ensembles:
         self.model_name = config['model']['model_name']
         self.n_estimators = config['model']['n_estimators']
         self.learning_rate = config['model']['learning_rate']
-        self.random_seed = config['data']['random_seed']  
+        self.random_seed = config['data']['random_seed']
+        self.qe_input_path = config['data']['qe_input_files']  
         if(self.model_name == 'RF'):
             if self.classification:
                 self.model = RandomForestClassifier(n_estimators=self.n_estimators,
@@ -54,6 +56,8 @@ class Ensembles:
         self.soap_features = config['features']['soap_features']
         self.soap_params = config['features']['soap_params']
         self.lattice_features = config['features']['lattice_features']
+        self.cgcnn_features = config['features']['cgcnn_features']
+        self.matscibert_features = config['features']['matscibert_features']
         # self.is_metal = config['model']['is_metal']
         # self.is_metal_ckpt_path = config['data']['is_metal_ckpt_path']
     
@@ -62,6 +66,8 @@ class Ensembles:
         self.test_ratio = config['data']['test_ratio']
         self.save_features = config['data']['save_features']
         self.path = config['data']['root_dir']
+        self.checkpoint_path = config['features']['checkpoint_path']
+        self.lmdb_exist = config['features']['lmdb_exist']
         
         self.data = pd.read_csv(os.path.join(config['data']['root_dir'],config['data']['id_prop_csv']),header=None)
         structures=[]
@@ -102,6 +108,12 @@ class Ensembles:
             if self.jarvis_features:
                 jarvis_f = jarvis_features(self.data)
                 features_list.append(jarvis_f)
+            if self.cgcnn_features:
+                cgcnn_f = cgcnn_features(self.checkpoint_path, self.path, self.lmdb_exist)
+                features_list.append(cgcnn_f)
+            if self.matscibert_features:
+                matscibert_f = matscibert_features(df=self.data, data_path=self.qe_input_path)
+                features_list.append(matscibert_f)
 
             self.features = np.concatenate(features_list, axis=1)
             if self.save_features:

@@ -2,6 +2,7 @@
 data:
     root_dir: data/cgcnn_junwen_july_3_kdist
     id_prop_csv: id_prop.csv
+    qe_input_files: null #qe_input_files
     random_seed: 42
     train_ratio: 0.8
     val_ratio: 0.1
@@ -19,25 +20,26 @@ model:
 
 features:
     composition_features:
-        ElementProperty: true
-        Stoichiometry: true
-        ValenceOrbital: true
+        ElementProperty: false
+        Stoichiometry: false
+        ValenceOrbital: false
         IonProperty: false
         AtomicOrbitals: false
     structure_features:
-        GlobalSymmetryFeatures: true
-        DensityFeatures: true
+        GlobalSymmetryFeatures: false
+        DensityFeatures: false
     jarvis_features: false
-    soap_features: true
+    soap_features: false
     soap_params: 
         r_cut: 10.0
         n_max: 8
         l_max: 6
         sigma: 1.0
     lattice_features: false
-    cgcnn_features: true
+    cgcnn_features: false
     checkpoint_path: trained_models/cgcnn/is_metal_nh3/is_metal.ckpt
-    lmdb_exist: true
+    matscibert_features: true
+    lmdb_exist: false
     feature_file: null #features.npy
 
     

@@ -14,6 +14,7 @@ data:
   root_dir: data/cgcnn_junwen_july_3_kdist    # cgcnn_data_mp_metal_nonmetal    #cgcnn_junwen_july_3_kdist
   model_name: cgcnn
   id_prop_csv: id_prop.csv
+  qe_input_files: null #qe_input_files
   train_ratio: 0.8
   val_ratio: 0.1
   test_ratio: 0.1
@@ -53,6 +54,7 @@ data:
     lattice_features: false
     cgcnn_features: false
     checkpoint_path: trained_models/cgcnn/is_metal_nh3/is_metal.ckpt
+    matscibert_features: true
     feat_lmdb_exist: true
     feature_file: null
   # atomic features specs
