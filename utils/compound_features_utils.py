@@ -223,7 +223,6 @@ def cgcnn_features(checkpoint_path: str, data_path: str, lmdb_exist: bool=False)
     for key in list(model_weights):
         model_weights[key.replace("model.", "")] = model_weights.pop(key)
     model.load_state_dict(model_weights)
-    # model.load_state_dict(model_weights, strict=False)
     model.eval()
 
     loader=data.test_dataloader()
@@ -318,7 +317,7 @@ def matscibert_features(df: pd.DataFrame = None, structure_column = 'structure',
             final_embedding = create_embedding(chunks, tokenizer, model)
             i=int(file_name[:-3])
             embeddings[i,:]=final_embedding
-        ############################################################
+    ############################################################
     # 2. incoding robocrystallographer structure description
     if df is not None:
         print('Robocrystallographer descriptions are used for matscibert features...')
@@ -351,6 +350,5 @@ def matscibert_features(df: pd.DataFrame = None, structure_column = 'structure',
 
             final_embedding = create_embedding(chunks, tokenizer, model)
             embeddings[i,:]=final_embedding
-    features=embeddings.numpy()
 
-    return features
+    return embeddings
