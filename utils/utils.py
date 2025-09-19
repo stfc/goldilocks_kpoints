@@ -41,8 +41,9 @@ def RobustL2Loss(output, log_std, target):
     """
     # NOTE can we scale log_std by something sensible to improve the OOD behaviour?
     loss = 0.5 * torch.pow(output - target, 2.0) * torch.exp(-2.0 * log_std) + log_std
-    reg_term = torch.mean(log_std**2)
-    return torch.mean(loss)+ 10 * reg_term
+    # reg_term = torch.mean(log_std**2)
+    # return torch.mean(loss)+ 10 * reg_term
+    return torch.mean(loss)
 
 def QuantileLoss(output, target, quantile=0.5):
     """

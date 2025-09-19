@@ -1,6 +1,7 @@
 from pytorch_lightning import Trainer
 from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error, mean_absolute_percentage_error
 from sklearn.metrics import accuracy_score, confusion_matrix, f1_score, matthews_corrcoef
+from scipy.stats import spearmanr, kendalltau
 import pandas as pd
 import numpy as np
 import argparse
@@ -15,7 +16,7 @@ project_root = Path(__file__).resolve().parent.parent
 sys.path.append(str(project_root))
 
 from datamodules.datamodule import GNNDataModule
-from utils.utils import load_yaml_config
+from utils.utils import load_yaml_config, concordance_index
 from models.modelmodule import GNNModel
 from models.ensembles import Ensembles
 
@@ -148,12 +149,19 @@ def neural_networks(**config):
         mae = mean_absolute_error(truth,prediction)
         mape = mean_absolute_percentage_error(truth,prediction)
         r2 = r2_score(truth,prediction)
+        spearman_corr, _ = spearmanr(truth,prediction)
+        kendall_corr, _ = kendalltau(truth,prediction)
+        c_index = concordance_index(truth,prediction)
         
         print(f'Model name: {config["model"]["name"]}')
         print(f'Test set MAE: {mae}')
         print(f'Test set MAPE: {mape}')
         print(f'Test set MSE: {mse}')
         print(f'Test set R2 score: {r2}')
+        print(f'Test set spearman_corr: {spearman_corr}')
+        print(f'Test set kendall_corr: {kendall_corr}')
+        print(f'Test set C-index: {c_index}')
+        
 
     if config['prediction']['predict_for_validation']:
         pass
@@ -185,12 +193,18 @@ def ensembles(save_model_path=None, save_model_name=None, **config):
         mae = mean_absolute_error(predictions['truth'].values, predictions['pred'].values)
         mape = mean_absolute_percentage_error(predictions['truth'].values, predictions['pred'].values)
         r2 = r2_score(predictions['truth'].values, predictions['pred'].values)
+        spearman_corr, _ = spearmanr(predictions['truth'].values, predictions['pred'].values)
+        kendall_corr, _ = kendalltau(predictions['truth'].values, predictions['pred'].values)
+        c_index = concordance_index(predictions['truth'].values, predictions['pred'].values)
         
         print(f'Model name: {config["model"]["model_name"]}')
         print(f'Test set MAE: {mae}')
         print(f'Test set MAPE: {mape}')
         print(f'Test set MSE: {mse}')
         print(f'Test set R2 score: {r2}')
+        print(f'Test set spearman_corr: {spearman_corr}')
+        print(f'Test set kendall_corr: {kendall_corr}')
+        print(f'Test set C-index: {c_index}')
     return
 
 if __name__ == "__main__":

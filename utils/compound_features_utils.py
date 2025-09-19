@@ -15,7 +15,6 @@ import matminer
 from matminer.featurizers.structure.composite import JarvisCFID
 from dscribe.descriptors import SOAP
 from pymatgen.io.ase import AseAtomsAdaptor
-from dscribe.descriptors import SOAP
 from matminer.featurizers.base import MultipleFeaturizer
 
 from pymatgen.core.composition import Composition
@@ -318,7 +317,7 @@ def matscibert_features(df: pd.DataFrame = None, structure_column = 'structure',
             i=int(file_name[:-3])
             embeddings[i,:]=final_embedding
     ############################################################
-    # 2. incoding robocrystallographer structure description
+    # 2. encoding robocrystallographer structure description
     if df is not None:
         print('Robocrystallographer descriptions are used for matscibert features...')
         embeddings=np.zeros((len(df),768))
