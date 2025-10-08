@@ -1,6 +1,6 @@
 # Ensemble models Configuration
 data:
-    root_dir: data/cgcnn_junwen_july_3_kdist
+    root_dir: data/cgcnn_junwen_oct_6_kdist
     id_prop_csv: id_prop.csv
     qe_input_files: null #qe_input_files
     random_seed: 42
@@ -11,7 +11,7 @@ data:
 
 model:
     model_name: RF # RF, GB, HGB
-    random_seed: 42
+    random_seed: 92
     n_estimators: 100
     learning_rate: 0.05
     classification: false
@@ -20,26 +20,26 @@ model:
 
 features:
     composition_features:
-        ElementProperty: false
-        Stoichiometry: false
-        ValenceOrbital: false
+        ElementProperty: true
+        Stoichiometry: true
+        ValenceOrbital: true
         IonProperty: false
         AtomicOrbitals: false
     structure_features:
-        GlobalSymmetryFeatures: false
-        DensityFeatures: false
+        GlobalSymmetryFeatures: true
+        DensityFeatures: true
     jarvis_features: false
-    soap_features: false
+    soap_features: true
     soap_params: 
         r_cut: 10.0
         n_max: 8
         l_max: 6
         sigma: 1.0
-    lattice_features: false
+    lattice_features: true
     cgcnn_features: false
     checkpoint_path: trained_models/cgcnn/is_metal_nh3/is_metal.ckpt
-    matscibert_features: true
-    lmdb_exist: false
+    matscibert_features: false
+    lmdb_exist: true
     feature_file: null #features.npy
 
     

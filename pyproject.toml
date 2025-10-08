@@ -38,6 +38,9 @@ dscribe = "^2.1.1"
 lightgbm = "^4.6.0"
 transformers = "^4.54.1"
 robocrys = "^0.2.11"
+seaborn = "^0.13.2"
+plotly = "^6.3.1"
+kaleido = "^1.1.0"
 
 [tool.poetry.urls]
 Repository = "https://github.com/ddmms/k_points"
