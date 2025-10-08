@@ -186,8 +186,13 @@ def jarvis_features(df: pd.DataFrame,
     jarvis_featurizer = JarvisCFID()
     jarvis_feat_len = len(jarvis_featurizer.featurize(df.iloc[0][structure_column]))
     features=np.zeros((len(df),jarvis_feat_len))
+    
     for i,struct in enumerate(df[structure_column].values):
-        features[i,:]=jarvis_featurizer.featurize(struct) 
+        try:
+            features[i,:]=jarvis_featurizer.featurize(struct) 
+        except:
+            form=struct.formula
+            print(f'Compound: {form} failed to calculate JarvisCFID features',form)
     features=np.nan_to_num(features, copy=True, nan=0.0, posinf=None, neginf=None)
     return features
 
@@ -210,7 +215,8 @@ def cgcnn_features(checkpoint_path: str, data_path: str, lmdb_exist: bool=False)
                          lmdb_val_name = 'val_data_feat_model.lmdb',
                          lmdb_test_name = 'test_data_feat_model.lmdb',
                          batch_size = 64,
-                         graph_params=checkpoint['hyper_parameters']['data']['graph_params'],
+                        #  graph_params=checkpoint['hyper_parameters']['data']['graph_params'],
+                         graph_params = None,
                          random_seed = checkpoint['hyper_parameters']['data']['random_seed'],
                          compound_features = {'additional_compound_features': None},
                          atomic_features = {'atom_feature_strategy': {'atom_feature_file': 'embeddings/atom_init_original.json',

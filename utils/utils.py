@@ -87,3 +87,18 @@ def IntervalScoreLoss(y_low, y_high, target, quantile):
     loss = width + penalty
     return loss.mean()
 
+
+def concordance_index(y_true, y_pred):
+    """Calculate concordance Index (C-index)"""
+    n = 0
+    n_concordant = 0
+    for i in range(len(y_true)):
+        for j in range(i + 1, len(y_true)):
+            if y_true[i] != y_true[j]:
+                n += 1
+                if (y_pred[i] - y_pred[j]) * (y_true[i] - y_true[j]) > 0:
+                    n_concordant += 1
+                elif (y_pred[i] - y_pred[j]) == 0 and (y_true[i] - y_true[j]) == 0:
+                    n_concordant += 0.5
+    return n_concordant / n if n > 0 else 0
+
