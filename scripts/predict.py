@@ -211,13 +211,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Prediction script")
 
     parser.add_argument("--config_file",
-                        default="ensembles.yaml",
+                        default="cgcnn.yaml",
                         help="Provide the experiment configuration file")
     parser.add_argument("--checkpoint_path",
-                        default="trained_models/cgcnn/basicl1robust/",
+                        default="trained_models/cgcnn/basic_l1robust_6_oct_paper/",
                         help="Provide the path to model checkpoint")
     parser.add_argument("--output_name",
-                        default="output/RF/basic_comp.csv",
+                        default="output/CGCNN/basic_l1robust_6_oct_paper.csv",
                         help="Provide the path to save predictions")
     parser.add_argument("--ensemble_model_save_name",
                         default="RF_basic_comp.pkl",

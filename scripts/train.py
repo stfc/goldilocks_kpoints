@@ -13,15 +13,16 @@ from pathlib import Path
 project_root = Path(__file__).resolve().parent.parent
 sys.path.append(str(project_root))
 
-from datamodules.datamodule import GNNDataModule
+from datamodules.gnn_datamodule import GNNDataModule
+from datamodules.crabnet_datamodule import CrabNetDataModule
 from utils.utils import load_yaml_config
-from models.modelmodule import GNNModel
+from models.modelmodule import GNNModel, CrabNetLightning
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Training script")
     parser.add_argument("--config_file",
-                        default="cgcnn.yaml",
+                        default="crabnet.yaml",
                         help="Provide the experiment configuration file")
 
 
@@ -37,43 +38,36 @@ if __name__ == "__main__":
                               save_dir=path_mlf_logger, \
                               log_model=False)
     
-    data = GNNDataModule(**config['data'])
-    config['data']['lmdb_exist']=True
-    print('-----------------------------------------')
-    print(f'atomic features: {config["data"]["atomic_features"]}')
-    print('-----------------------------------------')
-    print(f'compound features: {config["data"]["compound_features"]}')
-    print('-----------------------------------------')
-    model = GNNModel(**config)
+    if(config['model']['name']=='cgcnn' or config['model']['name']=='alignn'):
+        data = GNNDataModule(**config['data'])
+        config['data']['lmdb_exist']=True
+        print('-----------------------------------------')
+        print(f'atomic features: {config["data"]["atomic_features"]}')
+        print('-----------------------------------------')
+        print(f'compound features: {config["data"]["compound_features"]}')
+        print('-----------------------------------------')
+        model = GNNModel(**config)
+    elif(config['model']['name']=='crabnet'):
+        data = CrabNetDataModule(**config['data'])
+        print('-----------------------------------------')
+        print(f'atomic features: {config["data"]["atomic_features"]}')
+        print('-----------------------------------------')
+        model = CrabNetLightning(**config)
     
-    if(config['model']['name'] == 'cgcnn'):
-        if config['model']['classification']:
-            checkpoint_callback = ModelCheckpoint(monitor='val_mcc', \
+    
+    if config['model']['classification']:
+        checkpoint_callback = ModelCheckpoint(monitor='val_mcc', \
                                                 mode="max", \
                                                 save_top_k=config['train']['number_of_checkpoints'], \
                                                 dirpath='trained_models/cgcnn/', \
                                                 filename='cgcnn_{epoch:02d}_{val_mcc:.2f}')
-        else:
-            checkpoint_callback = ModelCheckpoint(monitor='val_mae', \
+    else:
+        checkpoint_callback = ModelCheckpoint(monitor='val_mae', \
                                                 mode="min", \
                                                 save_top_k=config['train']['number_of_checkpoints'], \
                                                 dirpath='trained_models/cgcnn/', \
                                                 filename='cgcnn_{epoch:02d}_{val_mae:.2f}')
             
-    elif(config['model']['name'] == 'alignn'):
-        if config['model']['classification']:
-            checkpoint_callback = ModelCheckpoint(monitor='val_mcc', \
-                                                mode="max", \
-                                                save_top_k=config['train']['number_of_checkpoints'], \
-                                                dirpath='trained_models/alignn/', \
-                                                filename='alignn_{epoch:02d}_{val_mcc:.2f}')
-        else:
-            checkpoint_callback = ModelCheckpoint(monitor='val_mae', \
-                                                mode="min", \
-                                                save_top_k=config['train']['number_of_checkpoints'], \
-                                                dirpath='trained_models/alignn/', \
-                                                filename='alignn_{epoch:02d}_{val_mae:.2f}')
-    
     if config['optim']['swa']:
         swa = StochasticWeightAveraging(swa_lrs=config['optim']['swa_lr'], swa_epoch_start=config['optim']['swa_start'])
     
@@ -114,4 +108,12 @@ if __name__ == "__main__":
                     pytorch_model=trainer.model,
                     artifact_path="best_alignn_model", 
                     registered_model_name="alignn_model"
+                )
+    elif(config['model']['name'] == 'crabnet'):
+        with mlflow.start_run(run_id=mlf_logger.run_id):
+            if checkpoint_callback.best_model_path:
+                mlflow.pytorch.log_model(
+                    pytorch_model=trainer.model,
+                    artifact_path="best_crabnet_model", 
+                    registered_model_name="crabnet_model"
                 )

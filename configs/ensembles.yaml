@@ -3,17 +3,17 @@ data:
     root_dir: data/cgcnn_junwen_oct_6_kdist
     id_prop_csv: id_prop.csv
     qe_input_files: null #qe_input_files
-    random_seed: 42
+    random_seed: 45
     train_ratio: 0.8
     val_ratio: 0.1
     test_ratio: 0.1
     save_features: true
 
 model:
-    model_name: RF # RF, GB, HGB
-    random_seed: 92
+    model_name: GB # RF, GB, HGB
+    random_seed: 42
     n_estimators: 100
-    learning_rate: 0.05
+    learning_rate: 0.2
     classification: false
     quantile_regression: false
     quantile: 0.9
@@ -36,10 +36,10 @@ features:
         l_max: 6
         sigma: 1.0
     lattice_features: true
-    cgcnn_features: false
+    cgcnn_features: true
     checkpoint_path: trained_models/cgcnn/is_metal_nh3/is_metal.ckpt
     matscibert_features: false
-    lmdb_exist: true
-    feature_file: null #features.npy
+    lmdb_exist: false
+    feature_file: features.npy #null
 
     

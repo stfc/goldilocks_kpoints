@@ -1,0 +1,63 @@
+train:
+  epochs: 300
+  accelerator: gpu
+  number_of_checkpoints: 1
+  devices: 1
+  patience: 50
+  run_name: test0
+  experiment_name: crabnet_basic
+  version: '1.0'
+
+data:
+  # general data specs
+  root_dir: data/cgcnn_junwen_oct_6_kdist    # cgcnn_data_mp_metal_nonmetal    #cgcnn_junwen_july_3_kdis
+  id_prop_csv: id_prop.csv
+  train_ratio: 0.8
+  val_ratio: 0.1
+  test_ratio: 0.1
+  train_path: crabnet_data/train.csv
+  val_path: crabnet_data/val.csv
+  test_path: crabnet_data/test.csv
+  random_seed: 42
+  batch_size: 4096
+  scale: false
+  stratify: false
+  pin_memory: false
+  n_elements: infer
+  atomic_features:
+    atom_feature_strategy:
+      atom_feature_file: embeddings/mat2vec.csv # cgcnn_original
+      soap_atomic: false
+    soap_params: 
+      r_cut: 10.0
+      n_max: 8
+      l_max: 6
+      sigma: 1.0
+
+model:  #clarify the question of weight initialization in lightning and random_seed for that
+  name: crabnet
+  out_dims: 3
+  d_model: 512
+  NN: 3
+  heads: 4
+  fudge: 0
+  random_seed: 42
+  classification: false
+  robust_regression: true
+  quantile_regression: false
+  num_quantiles: 1 # 1 for QuantileLoss, 2 for IntervalScoreLoss
+  num_classes: 2
+
+loss:
+  name: RobustL1Loss # RobustL2Loss, RobustL1Loss, QuantileLoss, CrossEntropyLoss, HuberLoss, L1Loss, MSELoss, StudentTLoss, IntervalScoreLoss
+  quantile: 0.9 # for quantile regression
+  student_nu: 5
+
+optim:
+  base_lr: 0.0001
+  max_lr: 0.006
+  weights: false
+  schedule: CyclicLR
+  swa: false
+  swa_lr: 0.01
+  swa_start: 0.05
