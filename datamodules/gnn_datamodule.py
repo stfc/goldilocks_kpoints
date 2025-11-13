@@ -115,6 +115,7 @@ class GNNDataModule(L.LightningDataModule):
                 list_of_feat.append(matscibert_f)
             additional_features_df=pd.DataFrame(np.concatenate(list_of_feat,axis=1))
 
+
         print(f'test_ratio {self.test_ratio}, train_ratio {self.train_ratio}')
 
         if self.test_ratio == 1.0:

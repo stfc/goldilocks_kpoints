@@ -38,6 +38,34 @@ def atomic_soap_features(structure, soap_params):
     atoms.set_chemical_symbols(["X"] * len(atoms))
     return desc.create(atoms)
 
+def atomic_soap_features_for_composition(structure, soap_params):
+    """Produce SOAP features for a structure assuming that the structure is a single element
+       (so it is a lattice representation). Suitable for Crabnet.
+    """
+    from dscribe.descriptors import SOAP
+    from pymatgen.io.ase import AseAtomsAdaptor
+    desc = SOAP(
+                    species=['X'],  # or whatever elements you're using
+                    r_cut=soap_params['r_cut'],
+                    n_max= soap_params['n_max'],
+                    l_max= soap_params['l_max'],
+                    sigma= soap_params['sigma'],
+                    periodic=True,
+                    sparse=False
+                )
+    atoms = AseAtomsAdaptor.get_atoms(structure)
+    atoms1 = AseAtomsAdaptor.get_atoms(structure)
+    atoms.set_chemical_symbols(["X"] * len(atoms))
+    soap = desc.create(atoms)
+    seq=atoms1.get_chemical_symbols()
+    comp=Composition(structure.formula)
+    vecs=[]
+    for i in range(len(comp)):
+        mask = [1 if el == comp.elements[i].symbol else 0 for el in seq]
+        avg = soap[np.array(mask, dtype=bool)].mean(axis=0)
+        vecs.append(avg)
+    return np.array(vecs)
+
 def atom_features_from_structure(structure: Structure, atomic_features: Dict):
     """Calculate an array of atomic features for structure
     """
