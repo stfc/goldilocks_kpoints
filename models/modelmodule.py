@@ -37,6 +37,20 @@ class GNNModel(L.LightningModule):
         self.model_name = config['model']['name']   
         
         if(self.model_name == 'alignn'):
+            config['data']['lmdb_exist'] = True
+            data = GNNDataModule(**config['data'])
+            dataset = data.train_dataset
+            g, _ = dataset.__getitem__(0)
+            atom_input_features = g.x.shape[-1]
+            config['model']['atom_input_features'] = atom_input_features
+            if hasattr(g, "additional_compound_features"):
+                add_feat_len = g.additional_compound_features.shape[-1]
+                config['model']['additional_compound_features'] = True
+                config['model']['add_feat_len'] = add_feat_len
+            else:
+                config['model']['additional_compound_features'] = False
+                config['model']['add_feat_len'] = None
+                
             self.model=ALIGNN_PyG(**config['model'])
             print(f'Model name: {self.model_name}\n')
             print(f'Model size: {count_parameters(self.model)} parameters\n')
@@ -196,7 +210,7 @@ class GNNModel(L.LightningModule):
             target = g.y
         elif(self.model_name == 'cgcnn'):
             target = batch.y
-
+            
         if self.robust_regression:
             prediction, log_std = output.chunk(2, dim=-1)
             prediction=prediction.squeeze()
@@ -211,16 +225,16 @@ class GNNModel(L.LightningModule):
             output = output.view(-1)
             loss = self.criterion(output, target)
         self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True, logger=True, batch_size=self.batch_size)
- 
+        
         if self.classification:
             prediction = torch.argmax(output, dim=1)
             # probs = F.softmax(output, dim=1)[:, 1]
             acc = accuracy_score(target.cpu().numpy(), prediction.detach().cpu().numpy())
             # auc = roc_auc_score(target.cpu().numpy(), probs.detach().cpu().numpy(),multi_class='ovr',average='macro')
-            f1 = f1_score(target.cpu().numpy(), prediction.detach().cpu().numpy(),average='macro')
+            f1 = f1_score(target.cpu().numpy(), prediction.detach().cpu().numpy(), average='macro')
             mcc = matthews_corrcoef(target.cpu().numpy(), prediction.detach().cpu().numpy())
             self.log("val_acc", float(acc), on_step=False, on_epoch=True, prog_bar=False, logger=True, batch_size=self.batch_size)
-            # self.log("val_auc", float(auc), on_step=False, on_epoch=True, prog_bar=True, logger=True, batch_size=self.batch_size)
+            # self.log("train_auc", float(auc), on_step=False, on_epoch=True, prog_bar=True, logger=True, batch_size=self.batch_size)
             self.log("val_f1", float(f1), on_step=False, on_epoch=True, prog_bar=True, logger=True, batch_size=self.batch_size)
             self.log("val_mcc", float(mcc), on_step=False, on_epoch=True, prog_bar=True, logger=True, batch_size=self.batch_size)
         elif self.robust_regression:
@@ -419,6 +433,7 @@ class CrabNetLightning(L.LightningModule):
         #                     step_size=3,
         #                     gamma=0.5)
         return [optimizer], [lr_scheduler]
+        # return [optimizer]
 
     def training_step(self, batch, batch_idx):
         X, y, formula = batch
@@ -486,16 +501,16 @@ class CrabNetLightning(L.LightningModule):
 
         if self.robust_regression:
             prediction, log_std = output.chunk(2, dim=-1)
-            loss = self.criterion(prediction.view(-1), log_std.view(-1), y.view(-1))
+            val_loss = self.criterion(prediction.view(-1), log_std.view(-1), y.view(-1))
         elif self.classification:
-            loss = self.criterion(output, y.long())
+            val_loss = self.criterion(output, y.long())
         elif self.quantile_regression and self.loss_name == 'IntervalScoreLoss':
             y_low, y_high = output.chunk(2, dim=-1)
-            loss = self.criterion(y_low, y_high, y.view(-1))
+            val_loss = self.criterion(y_low, y_high, y.view(-1))
         else:
             output = output.view(-1)
-            loss = self.criterion(output, y.view(-1))
-        self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True, logger=True, batch_size=self.batch_size)
+            val_loss = self.criterion(output, y.view(-1))
+        self.log("val_loss", val_loss, on_step=False, on_epoch=True, prog_bar=True, logger=True, batch_size=self.batch_size)
         
         if self.classification:
             prediction = torch.argmax(output, dim=1)
@@ -511,10 +526,10 @@ class CrabNetLightning(L.LightningModule):
         elif self.robust_regression:
             # log_std = torch.exp(log_std) * self.scaler.std
             # prediction = self.scaler.unscale(prediction)
-            mse = mean_squared_error(y.cpu(),prediction.data.cpu())
-            mae = mean_absolute_error(y.cpu(),prediction.data.cpu())
-            self.log("val_mse", float(mse), on_step=False, on_epoch=True, prog_bar=False, logger=True, batch_size=self.batch_size)
-            self.log("val_mae", float(mae), on_step=False, on_epoch=True, prog_bar=True, logger=True, batch_size=self.batch_size)
+            val_mse = mean_squared_error(y.cpu(),prediction.data.cpu())
+            val_mae = mean_absolute_error(y.cpu(),prediction.data.cpu())
+            self.log("val_mse", float(val_mse), on_step=False, on_epoch=True, prog_bar=False, logger=True, batch_size=self.batch_size)
+            self.log("val_mae", float(val_mae), on_step=False, on_epoch=True, prog_bar=True, logger=True, batch_size=self.batch_size)
         elif self.quantile_regression and self.loss_name == 'IntervalScoreLoss':
             mse = mean_squared_error(y.cpu(),0.5*y_high.data.cpu()+0.5*y_low.data.cpu())
             mae = mean_absolute_error(y.cpu(),0.5*y_high.data.cpu()+0.5*y_low.data.cpu())
@@ -525,7 +540,7 @@ class CrabNetLightning(L.LightningModule):
             mae = mean_absolute_error(y.cpu(),output.data.cpu())
             self.log("val_mse", float(mse), on_step=False, on_epoch=True, prog_bar=False, logger=True, batch_size=self.batch_size)
             self.log("val_mae", float(mae), on_step=False, on_epoch=True, prog_bar=True, logger=True, batch_size=self.batch_size)
-        return loss
+        return val_loss
      
     def test_step(self, batch, batch_idx):
         X, y, formula = batch

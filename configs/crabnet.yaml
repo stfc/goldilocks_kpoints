@@ -18,15 +18,16 @@ data:
   train_path: crabnet_data/train.csv
   val_path: crabnet_data/val.csv
   test_path: crabnet_data/test.csv
-  random_seed: 42
-  batch_size: 4096
+  random_seed: 177
+  batch_size: 1024
   scale: false
   stratify: false
   pin_memory: false
   n_elements: infer
+  scale_y: false
   atomic_features:
     atom_feature_strategy:
-      atom_feature_file: embeddings/mat2vec.csv # cgcnn_original
+      atom_feature_file: embeddings/atom_init_with_sssp_cutoffs.json # cgcnn_original
       soap_atomic: false
     soap_params: 
       r_cut: 10.0
@@ -38,10 +39,10 @@ model:  #clarify the question of weight initialization in lightning and random_s
   name: crabnet
   out_dims: 3
   d_model: 512
-  NN: 3
+  NN: 5
   heads: 4
   fudge: 0
-  random_seed: 42
+  random_seed: 177
   classification: false
   robust_regression: true
   quantile_regression: false
@@ -54,10 +55,13 @@ loss:
   student_nu: 5
 
 optim:
-  base_lr: 0.0001
-  max_lr: 0.006
+  base_lr: 0.0003
+  max_lr: 0.005
   weights: false
   schedule: CyclicLR
   swa: false
-  swa_lr: 0.01
-  swa_start: 0.05
+  swa_lr: 0.0025
+  swa_start: 0.3
+
+prediction:
+  predict_for_validation: true

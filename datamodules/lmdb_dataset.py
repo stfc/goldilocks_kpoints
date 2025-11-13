@@ -101,6 +101,10 @@ def create_lmdb_database(data,
                 data_g.y = label
                 data_g.sample_id = sample_id
                 data_lg.sample_id = sample_id
+                if additional_compound_features_df is not None:
+                    additional_features = additional_compound_features_df.iloc[idx].values
+                    additional_features = torch.tensor(additional_features).type(torch.get_default_dtype())
+                    data_g.additional_compound_features = additional_features
                 serialized_data = pk.dumps((data_g, data_lg))
             elif model == "cgcnn":
                 if graph_type == 'radius':

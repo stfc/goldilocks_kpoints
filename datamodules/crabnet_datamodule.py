@@ -27,7 +27,8 @@ class CrabNetDataModule(L.LightningDataModule):
                  test_path = 'crabnet_data/test.csv',
                  n_elements ='infer',
                  classification = False,
-                 stratify = False,     
+                 stratify = False,
+                 scale_y=False,     
                  atomic_features = {'atomic_features_strategy': {'atom_feature_file': 'embeddings/atom_init_original.json',
                                                                  'soap_atomic': False}},
                  scale = True,
@@ -52,10 +53,13 @@ class CrabNetDataModule(L.LightningDataModule):
 
         data = pd.read_csv(os.path.join(root_dir,id_prop_csv),header = None)
         formulas=[]
+        # structures=[]
         for name in data[0].values:
             structure=Structure.from_file(os.path.join(root_dir,str(name)+'.cif'))
             formulas.append(structure.formula)
+            # structures.append(structure.to_primitive)
         data['formula']=formulas
+        # data['structure']=structures
         data = normalize_formulas(data)
         
         data = data.rename(columns={'formula': 'formula', 1: 'target'})

@@ -5,23 +5,67 @@ train:
   devices: 1
   patience: 50
   run_name: test0
-  experiment_name: test
+  experiment_name: alignn_basic
   version: '1.0'
 
 data:
-  root_dir: data/cgcnn_junwen_may_k_number
+  # general data specs
+  root_dir: data/cgcnn_junwen_oct_6_kdist    # cgcnn_data_mp_metal_nonmetal    
   model_name: alignn
   id_prop_csv: id_prop.csv
-  features_file: embeddings/atom_init_original.json
+  qe_input_files: null #qe_input_files
   train_ratio: 0.8
   val_ratio: 0.1
   test_ratio: 0.1
-  lmdb_exist: false
+  lmdb_exist: true
+  lmdb_test_name: test_data.lmdb
+  lmdb_train_name: train_data.lmdb
+  lmdb_val_name: val_data.lmdb
   batch_size: 4
-  radius: 10.0
-  max_neighbors: 12
+  graph_params:
+    radius: 10.0
+    max_neighbors: 12
+    graph_type: 'radius' # 'radius', 'crystalnn'
   pin_memory: false
   random_seed: 42
+  stratify: false
+  scale_y: false
+  # compound features specs
+  compound_features:
+    data_file: null
+    additional_compound_features: ['composition_features'] # ['composition_features'] 
+    composition_features:
+      ElementProperty: true
+      Stoichiometry: true
+      ValenceOrbital: true
+      IonProperty: false
+      AtomicOrbitals: false
+    structure_features:
+      GlobalSymmetryFeatures: true
+      DensityFeatures: true
+    jarvis_features: false
+    soap_features: true
+    soap_params: 
+      r_cut: 10.0
+      n_max: 8
+      l_max: 6
+      sigma: 1.0
+    lattice_features: true
+    cgcnn_features: true
+    checkpoint_path: trained_models/cgcnn/is_metal_nh3/is_metal.ckpt
+    matscibert_features: false
+    feat_lmdb_exist: false
+    feature_file: null
+  # atomic features specs
+  atomic_features:
+    atom_feature_strategy:
+      atom_feature_file: embeddings/atom_init_with_sssp_cutoffs.json # cgcnn_original
+      soap_atomic: false
+    soap_params: 
+      r_cut: 10.0
+      n_max: 8
+      l_max: 6
+      sigma: 1.0
 
 model:
   name: alignn
@@ -35,15 +79,26 @@ model:
   classification: false
   num_classes: 2
   robust_regression: false
+  quantile_regression: false
+  num_quantiles: 1 # 1 for QuantileLoss, 2 for IntervalScoreLoss
+  additional_compound_features: false
+  add_feat_len: 64
 
 loss:
-  name: RobustL2Loss # RobustL1Loss, QuantileLoss, CrossEntropyLoss, HuberLoss, L1Loss, MSELoss
-  quantile: 0.5 # for quantile regression
-  
+  name: MSELoss # RobustL2Loss, RobustL1Loss, QuantileLoss, CrossEntropyLoss, HuberLoss, L1Loss, MSELoss, StudentTLoss, IntervalScoreLoss
+  quantile: 0.9 # for quantile regression
+  student_nu: 5
+
 optim:
-  weight_decay: 0.00001  # 1e-5
-  learning_rate: 0.0003
-  criterion: mse
+  weight_decay: 0.0001  # 1e-5
+  learning_rate: 0.001
+  weights: false
   optimizer: adamw
   momentum: 0.9
   scheduler: onecycle
+  swa: false
+  swa_lr: 0.005
+  swa_start: 50
+
+prediction:
+  predict_for_validation: true

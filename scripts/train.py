@@ -2,9 +2,10 @@ import pytorch_lightning as L
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.callbacks import ModelCheckpoint, StochasticWeightAveraging, Callback
-from lightning.pytorch.loggers import MLFlowLogger
+from pytorch_lightning.loggers import MLFlowLogger
 import mlflow.pytorch
 import argparse
+from pytorch_lightning.callbacks import Callback as PLCallback
 
 import sys
 from pathlib import Path
@@ -22,7 +23,7 @@ from models.modelmodule import GNNModel, CrabNetLightning
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Training script")
     parser.add_argument("--config_file",
-                        default="crabnet.yaml",
+                        default="alignn.yaml",
                         help="Provide the experiment configuration file")
 
 
@@ -59,24 +60,35 @@ if __name__ == "__main__":
         checkpoint_callback = ModelCheckpoint(monitor='val_mcc', \
                                                 mode="max", \
                                                 save_top_k=config['train']['number_of_checkpoints'], \
-                                                dirpath='trained_models/cgcnn/', \
-                                                filename='cgcnn_{epoch:02d}_{val_mcc:.2f}')
+                                                dirpath=f"trained_models/{config['model']['name']}/", \
+                                                filename='{epoch:02d}_{val_mcc:.2f}')
     else:
         checkpoint_callback = ModelCheckpoint(monitor='val_mae', \
                                                 mode="min", \
                                                 save_top_k=config['train']['number_of_checkpoints'], \
-                                                dirpath='trained_models/cgcnn/', \
-                                                filename='cgcnn_{epoch:02d}_{val_mae:.2f}')
+                                                dirpath=f"trained_models/{config['model']['name']}/", \
+                                                filename='{epoch:02d}_{val_mae:.3f}')
+
+                        
             
     if config['optim']['swa']:
-        swa = StochasticWeightAveraging(swa_lrs=config['optim']['swa_lr'], swa_epoch_start=config['optim']['swa_start'])
-    
-        trainer = Trainer(max_epochs=config['train']['epochs'], \
-                                accelerator=config['train']['accelerator'],  \
-                                devices=config['train']['devices'], \
-                                logger=mlf_logger, \
-                                callbacks=[EarlyStopping(monitor='val_loss', patience=config['train']['patience']), 
-                                        checkpoint_callback, swa])
+        swa = StochasticWeightAveraging(swa_lrs=config['optim']['swa_lr'], annealing_epochs=5, annealing_strategy='linear', swa_epoch_start=config['optim']['swa_start'])
+        early_stopping_cb = EarlyStopping(
+                                            monitor='val_mae',
+                                            patience=config['train']['patience'],
+                                        )
+
+        callbacks=[early_stopping_cb,checkpoint_callback, swa]
+        
+        assert all(isinstance(cb, PLCallback) for cb in callbacks), [type(cb) for cb in callbacks]
+        
+        trainer = Trainer(
+                            max_epochs=config['train']['epochs'],
+                            accelerator=config['train']['accelerator'],
+                            devices=config['train']['devices'],
+                            logger=mlf_logger,
+                            callbacks=callbacks
+                        )
     else:
         trainer = Trainer(max_epochs=config['train']['epochs'], \
                                 accelerator=config['train']['accelerator'],  \

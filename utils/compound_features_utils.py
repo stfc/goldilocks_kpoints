@@ -199,7 +199,7 @@ def jarvis_features(df: pd.DataFrame,
 def cgcnn_features(checkpoint_path: str, data_path: str, lmdb_exist: bool=False):
     """Create a dataframe with embeddings extracted from prevoiusly trained CGCNN model
     """
-    from datamodules.datamodule import GNNDataModule
+    from datamodules.gnn_datamodule import GNNDataModule
     from models.cgcnn import CGCNN_PyG
 
     checkpoint = torch.load(checkpoint_path, map_location='cpu')

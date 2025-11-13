@@ -28,17 +28,17 @@ data:
     max_neighbors: 12
     graph_type: 'radius' # 'radius', 'crystalnn'
   pin_memory: false
-  random_seed: 555
+  random_seed: 42
   stratify: false
   scale_y: false
   # compound features specs
   compound_features:
     data_file: null
-    additional_compound_features: ['composition_features','structure_features','soap_features'] # ['composition features'] 
+    additional_compound_features: null # ['composition features'] 
     composition_features:
-      ElementProperty: true
-      Stoichiometry: true
-      ValenceOrbital: true
+      ElementProperty: false
+      Stoichiometry: false
+      ValenceOrbital: false
       IonProperty: false
       AtomicOrbitals: false
     structure_features:
@@ -51,8 +51,8 @@ data:
       n_max: 8
       l_max: 6
       sigma: 1.0
-    lattice_features: false
-    cgcnn_features: false
+    lattice_features: true
+    cgcnn_features: true
     checkpoint_path: trained_models/cgcnn/is_metal_nh3/is_metal.ckpt
     matscibert_features: false
     feat_lmdb_exist: false
@@ -75,7 +75,7 @@ model:  #clarify the question of weight initialization in lightning and random_s
   orig_atom_fea_len: 92
   edge_feat_dim: 64
   atom_fea_len: 64
-  n_h: 1
+  n_h: 2
   robust_regression: true
   quantile_regression: false
   num_quantiles: 1 # 1 for QuantileLoss, 2 for IntervalScoreLoss
@@ -91,7 +91,7 @@ loss:
   student_nu: 5
 
 optim:
-  weight_decay: 0.0002  # 1e-5
+  weight_decay: 0.0001  # 1e-5
   learning_rate: 0.005
   weights: false
   optimizer: adamw

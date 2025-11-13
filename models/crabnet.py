@@ -49,8 +49,9 @@ class Embedder(nn.Module):
         super().__init__()
         self.d_model = d_model
         self.compute_device = compute_device
-        # # Choose what element information the model receives
-        cbfv = pd.read_csv(embedding_file, index_col=0).values
+        # Choose what element information the model receives
+        cbfv = pd.read_json(embedding_file).values.T
+
         feat_size = cbfv.shape[-1]
         self.fc_mat2vec = nn.Linear(feat_size, d_model).to(self.compute_device)
         zeros = np.zeros((1, feat_size))
@@ -182,7 +183,7 @@ class CrabNet(nn.Module):
                  d_model=512,
                  N=3,
                  heads=4,
-                 embedding_file='../embeddings/mat2vec.csv',
+                 embedding_file='embeddings/mat2vec.json',
                  compute_device=None,
                  residual_nn='roost'):
         super().__init__()

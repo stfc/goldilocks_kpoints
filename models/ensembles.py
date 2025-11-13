@@ -5,6 +5,7 @@ import os
 import pickle
 
 from sklearn.ensemble import RandomForestRegressor,RandomForestClassifier 
+from sklearn_quantile import RandomForestQuantileRegressor
 from sklearn.ensemble import GradientBoostingRegressor, GradientBoostingClassifier
 from sklearn.ensemble import HistGradientBoostingRegressor, HistGradientBoostingClassifier
 from sklearn.model_selection import train_test_split
@@ -26,13 +27,21 @@ class Ensembles:
         self.learning_rate = config['model']['learning_rate']
         self.random_seed = config['data']['random_seed']
         self.qe_input_path = config['data']['qe_input_files']  
-        if(self.model_name == 'RF'):
+        if(self.model_name == 'RF' and self.quantile_regression == False):
             if self.classification:
                 self.model = RandomForestClassifier(n_estimators=self.n_estimators,
                                                     random_state =self.random_seed)
             else:
                 self.model = RandomForestRegressor(n_estimators=self.n_estimators,
                                                    random_state =self.random_seed)
+        elif(self.model_name == 'RF' and self.quantile_regression == True):
+            if self.classification:
+                self.model = RandomForestClassifier(n_estimators=self.n_estimators,
+                                                    random_state =self.random_seed)
+            else:
+                self.model = RandomForestQuantileRegressor(n_estimators=self.n_estimators, 
+                                                           q=[(1-self.quantile)*0.5,0.5,(1+self.quantile)*0.5],
+                                                           random_state =self.random_seed)                                 
         elif(self.model_name == 'GB'):
             if self.classification:
                 self.model = GradientBoostingClassifier(learning_rate=self.learning_rate,
@@ -47,7 +56,8 @@ class Ensembles:
             else:
                 self.model = HistGradientBoostingRegressor(learning_rate=self.learning_rate,
                                                            random_state =self.random_seed)
-                                                        
+
+        print(self.model)                                              
         # defining features
         self.feature_file = config['features']['feature_file']
         self.composition_features = config['features']['composition_features']

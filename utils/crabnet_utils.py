@@ -8,6 +8,12 @@ from collections import OrderedDict, defaultdict
 from pymatgen.core.composition import Composition
 from torch.optim.optimizer import Optimizer
 from tqdm import tqdm
+# from lightning.pytorch.callbacks import WeightAveraging
+from utils.weight_averaging_callback import WeightAveraging
+from pytorch_lightning.callbacks import Callback
+from typing import Optional, Callable
+from torch.optim.swa_utils import AveragedModel, get_ema_avg_fn
+
 
 data_type_torch = torch.float32
 data_type_np = np.float32
