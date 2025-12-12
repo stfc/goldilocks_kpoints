@@ -127,7 +127,8 @@ python scripts/predict.py \
     --output_name output/predictions.csv
 ```
 
-### 5. To perform Conformalised quantile regression, first train quantile models using quantile loss, or QRF (for ranfom Forest). Then use the notebooks (availibel for RF and ALIGNN, but can be easily modified for other models) to calculate conformal corrections to the intervals.
+### 5. Conformalised quantile regression
+To perform Conformalised quantile regression, first train quantile models using quantile loss, or QRF (for ranfom Forest). Then use the notebooks (availibel for RF and ALIGNN, but can be easily modified for other models) to calculate conformal corrections to the intervals.
 
 ## Model Training
 
