@@ -166,6 +166,10 @@ A calculation is considered converged if the total energy change for 3 consecuti
 ```
 goldilocks_kpoints/
 ├── configs/              # Configuration files for different models
+|   ├── cgcnn.yaml
+|   ├── alignn.yaml
+|   ├── ensembles.yaml
+|   └── crabnet.json
 ├── data/                 # Data directory (CIF files, CSV files)
 ├── trained_models/       # The place to store trained models
 ├── outputs/              # The place to write outputs to
