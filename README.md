@@ -194,7 +194,7 @@ goldilocks_kpoints/
 If you use this code in your research, please cite:
 
 ```bibtex
-@software{goldilocks_kpoints,
+@article{goldilocks_kpoints,
   title = {Automatic generation of input files with optimised k-point meshes for Quantum Espresso self-consistent field single point total energy calculations},
   author = {Elena Patyukova, Junwen Yin, Susmita Basak, Jaehoon Cha, Alin Elenaa, and Gilberto Teobaldi},
   year = {2025},
