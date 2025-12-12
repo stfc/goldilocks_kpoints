@@ -1,7 +1,7 @@
 train:
   epochs: 300
   accelerator: gpu
-  number_of_checkpoints: 1
+  number_of_checkpoints: 3
   devices: 1
   patience: 50
   run_name: test0
@@ -10,7 +10,7 @@ train:
 
 data:
   # general data specs
-  root_dir: data/cgcnn_junwen_oct_6_kdist    # cgcnn_data_mp_metal_nonmetal    #cgcnn_junwen_july_3_kdis
+  root_dir: data/cgcnn_data_mp_metal_nonmetal    # cgcnn_data_mp_metal_nonmetal    #cgcnn_junwen_july_3_kdis
   id_prop_csv: id_prop.csv
   train_ratio: 0.8
   val_ratio: 0.1
@@ -43,8 +43,8 @@ model:  #clarify the question of weight initialization in lightning and random_s
   heads: 4
   fudge: 0
   random_seed: 177
-  classification: false
-  robust_regression: true
+  classification: true
+  robust_regression: false
   quantile_regression: false
   num_quantiles: 1 # 1 for QuantileLoss, 2 for IntervalScoreLoss
   num_classes: 2
@@ -55,7 +55,7 @@ loss:
   student_nu: 5
 
 optim:
-  base_lr: 0.0003
+  base_lr: 0.001
   max_lr: 0.005
   weights: false
   schedule: CyclicLR

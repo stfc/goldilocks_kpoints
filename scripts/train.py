@@ -63,7 +63,7 @@ if __name__ == "__main__":
                                                 dirpath=f"trained_models/{config['model']['name']}/", \
                                                 filename='{epoch:02d}_{val_mcc:.2f}')
     else:
-        checkpoint_callback = ModelCheckpoint(monitor='val_mae', \
+        checkpoint_callback = ModelCheckpoint(monitor='val_loss', \
                                                 mode="min", \
                                                 save_top_k=config['train']['number_of_checkpoints'], \
                                                 dirpath=f"trained_models/{config['model']['name']}/", \

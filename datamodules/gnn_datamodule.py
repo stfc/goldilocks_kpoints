@@ -24,10 +24,13 @@ class GNNDataModule(L.LightningDataModule):
                  train_ratio = 0.8,
                  val_ratio = 0.1, 
                  test_ratio = 0.1,
+                 cal_ratio = 0.1,
+                 calibration = False,
                  lmdb_exist = False,
                  lmdb_train_name = 'train_data.lmdb',
                  lmdb_val_name = 'val_data.lmdb',
                  lmdb_test_name = 'test_data.lmdb',
+                 lmdb_cal_name = 'cal_data.lmdb',
                  batch_size = 64,
                  graph_params = None,
                  pin_memory = False,
@@ -57,9 +60,15 @@ class GNNDataModule(L.LightningDataModule):
         self.lmdb_train_name = lmdb_train_name
         self.lmdb_val_name = lmdb_val_name
         self.lmdb_test_name = lmdb_test_name
+        self.lmdb_cal_name = lmdb_cal_name
+
         self.test_ratio = test_ratio
         self.val_ratio = val_ratio
         self.train_ratio = train_ratio
+        self.cal_ratio = cal_ratio
+
+        self.calibration = calibration
+
         self.random_seed = random_seed
         self.lmdb_exist = lmdb_exist
 
@@ -117,6 +126,7 @@ class GNNDataModule(L.LightningDataModule):
 
 
         print(f'test_ratio {self.test_ratio}, train_ratio {self.train_ratio}')
+        print(f'calibration {self.calibration}, cal_ratio {self.cal_ratio}')
 
         if self.test_ratio == 1.0:
             train_idx=[]
@@ -130,23 +140,34 @@ class GNNDataModule(L.LightningDataModule):
             else:
                 train_idx, test_idx = train_test_split(data.index.values, test_size=self.test_ratio, random_state=random_seed)
                 train_idx, val_idx = train_test_split(train_idx, train_size=self.train_ratio/(1-self.test_ratio), random_state=self.random_seed)
+                if self.calibration:
+                    train_idx, cal_idx = train_test_split(train_idx, test_size=self.cal_ratio, random_state=self.random_seed)
+
         else:
             raise ValueError("Invalid test_ratio or train_ratio. Ensure 0 < train_ratio, test_ratio < 1, or test_ratio == 1.0.")
 
         train = data.iloc[train_idx].reset_index(drop=True)
         val = data.iloc[val_idx].reset_index(drop=True)
         test = data.iloc[test_idx].reset_index(drop=True)
+        if self.calibration:
+            cal = data.iloc[cal_idx].reset_index(drop=True)
 
         train.to_csv(os.path.join(root_dir, 'train.csv'), index=False,header=None)
         val.to_csv(os.path.join(root_dir, 'val.csv'), index=False,header=None)
         test.to_csv(os.path.join(root_dir, 'test.csv'), index=False,header=None)
+        if self.calibration:
+            cal.to_csv(os.path.join(root_dir, 'cal.csv'), index=False,header=None)
 
         if(self.compound_features['additional_compound_features'] is not None):
             train_add_feat=additional_features_df.iloc[train_idx].reset_index(drop=True)
             val_add_feat=additional_features_df.iloc[val_idx].reset_index(drop=True)
             test_add_feat=additional_features_df.iloc[test_idx].reset_index(drop=True)
+            if self.calibration:
+                cal_add_feat=additional_features_df.iloc[cal_idx].reset_index(drop=True)
 
         list_of_paths=[self.lmdb_train_name, self.lmdb_val_name, self.lmdb_test_name]
+        if self.calibration:
+            list_of_paths.append(self.lmdb_cal_name)
         
         if(self.lmdb_exist == False):
             if os.path.exists(os.path.join(root_dir,self.lmdb_train_name)):
@@ -155,6 +176,9 @@ class GNNDataModule(L.LightningDataModule):
                 shutil.rmtree(os.path.join(root_dir,self.lmdb_val_name))
             if os.path.exists(os.path.join(root_dir,self.lmdb_test_name)):
                 shutil.rmtree(os.path.join(root_dir,self.lmdb_test_name))
+            if self.calibration:
+                if os.path.exists(os.path.join(root_dir,self.lmdb_cal_name)):
+                    shutil.rmtree(os.path.join(root_dir,self.lmdb_cal_name))
             if(self.compound_features['additional_compound_features'] is not None): 
                     create_lmdb_database(train, self.lmdb_train_name, root_dir, self.atomic_features,\
                                  radius=self.radius,max_neighbors=self.max_neighbors, model=self.model,\
@@ -165,6 +189,10 @@ class GNNDataModule(L.LightningDataModule):
                     create_lmdb_database(test,self.lmdb_test_name, root_dir, self.atomic_features,\
                                  radius=self.radius,max_neighbors=self.max_neighbors, model=self.model,\
                                  graph_type=self.graph_type,additional_compound_features_df=test_add_feat)
+                    if self.calibration:
+                        create_lmdb_database(cal,self.lmdb_cal_name, root_dir, self.atomic_features,\
+                                 radius=self.radius,max_neighbors=self.max_neighbors, model=self.model,\
+                                 graph_type=self.graph_type,additional_compound_features_df=cal_add_feat)
             else:
                     create_lmdb_database(train,self.lmdb_train_name, root_dir, self.atomic_features,\
                                  radius=self.radius,max_neighbors=self.max_neighbors, model=self.model,\
@@ -175,6 +203,10 @@ class GNNDataModule(L.LightningDataModule):
                     create_lmdb_database(test,self.lmdb_test_name, root_dir, self.atomic_features,\
                                  radius=self.radius,max_neighbors=self.max_neighbors, model=self.model,\
                                  graph_type=self.graph_type)
+                    if self.calibration:
+                        create_lmdb_database(cal,self.lmdb_cal_name, root_dir, self.atomic_features,\
+                                 radius=self.radius,max_neighbors=self.max_neighbors, model=self.model,\
+                                 graph_type=self.graph_type)
                      
         elif not all(os.path.exists(os.path.join(root_dir,var)) for var in list_of_paths):
             print("Put lmdb_exist to False or provide train/val/test lmdb files.")
@@ -182,10 +214,14 @@ class GNNDataModule(L.LightningDataModule):
         self.train_dataset = LMDBPyGDataset(os.path.join(root_dir, self.lmdb_train_name), model=self.model)
         self.val_dataset = LMDBPyGDataset(os.path.join(root_dir, self.lmdb_val_name), model=self.model)
         self.test_dataset = LMDBPyGDataset(os.path.join(root_dir, self.lmdb_test_name), model=self.model)
+        if self.calibration:
+            self.cal_dataset = LMDBPyGDataset(os.path.join(root_dir, self.lmdb_cal_name), model=self.model)
 
         self.train_collate = self.train_dataset.collate_fn
         self.val_collate = self.val_dataset.collate_fn
         self.test_collate = self.test_dataset.collate_fn
+        if self.calibration:
+            self.cal_collate = self.cal_dataset.collate_fn
   
     def train_dataloader(self,shuffle=True):
         return DataLoader(self.train_dataset, batch_size=self.batch_size,
@@ -199,7 +235,14 @@ class GNNDataModule(L.LightningDataModule):
         return DataLoader(self.test_dataset, batch_size=self.batch_size,
                           num_workers=0, collate_fn=self.test_collate, 
                           pin_memory=self.pin_memory, shuffle=shuffle)
-    def predict_dataloader(self,shuffle=False):
-        return DataLoader(self.test_dataset, batch_size=self.batch_size,
-                          num_workers=0, collate_fn=self.test_collate, 
+    def cal_dataloader(self,shuffle=False):
+        return DataLoader(self.cal_dataset, batch_size=self.batch_size,
+                          num_workers=0, collate_fn=self.cal_collate, 
                           pin_memory=self.pin_memory, shuffle=shuffle)
+    def predict_dataloader(self,shuffle=False):
+        if self.calibration:
+            pass
+        else:
+            return DataLoader(self.test_dataset, batch_size=self.batch_size,
+                            num_workers=0, collate_fn=self.test_collate, 
+                            pin_memory=self.pin_memory, shuffle=shuffle)
