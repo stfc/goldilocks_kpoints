@@ -35,6 +35,7 @@ class CrabNetDataModule(L.LightningDataModule):
                  pin_memory = False):
         super().__init__()
         
+        # add check that root_dir + crabnet_data exist
         self.train_path = os.path.join(root_dir,train_path)
         self.val_path = os.path.join(root_dir,val_path)
         self.test_path = os.path.join(root_dir,test_path)

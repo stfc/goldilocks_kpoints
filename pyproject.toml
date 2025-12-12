@@ -8,7 +8,7 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = ">=3.11,<3.13"
-torch = "==2.5.1"
+torch = "2.4.0"
 pymatgen = "==2024.11.13"
 ase = ">=3.25.0,<4.0.0"
 pydantic = "==2.11.4"
@@ -39,9 +39,21 @@ seaborn = "^0.13.2"
 plotly = "^6.3.1"
 kaleido = "^1.1.0"
 pytorch-lightning = "^2.4"
+pyg-lib = {url = "https://data.pyg.org/whl/torch-2.4.0+cpu/pyg_lib-0.4.0+pt24-cp311-cp311-macosx_14_0_universal2.whl"}
+torch-cluster = {url = "https://data.pyg.org/whl/torch-2.4.0+cpu/torch_cluster-1.6.3-cp311-cp311-macosx_10_9_universal2.whl"}
+torch-scatter = {url = "https://data.pyg.org/whl/torch-2.4.0+cpu/torch_scatter-2.1.2-cp311-cp311-macosx_10_9_universal2.whl"}
+torch-sparse = {url = "https://data.pyg.org/whl/torch-2.4.0+cpu/torch_sparse-0.6.18-cp311-cp311-macosx_11_0_universal2.whl"}
+torch-spline-conv = {url = "https://data.pyg.org/whl/torch-2.4.0+cpu/torch_spline_conv-1.2.2-cp311-cp311-macosx_10_9_universal2.whl"}
+torch-geometric = "^2.7.0"
+mapie = "^1.2.0"
 
 [tool.poetry.urls]
 Repository = "https://github.com/ddmms/k_points"
+
+[[tool.poetry.source]]
+name = "pyg"
+url = "https://data.pyg.org/whl"
+priority = "explicit"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

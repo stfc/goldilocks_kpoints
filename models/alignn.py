@@ -221,7 +221,9 @@ class ALIGNN_PyG(nn.Module):
         x_pool = self.readout(x, data_g.batch)
         
         if self.additional_compound_features:
-            add_feat = self.add_feat_norm(data_g.additional_compound_features)
+            # Reshape additional features to [batch_size, add_feat_len]
+            add_feat = data_g.additional_compound_features.view(-1, self.add_feat_len)
+            add_feat = self.add_feat_norm(add_feat)
             add_feat = self.proj_add_feat(add_feat)
             add_feat = self.add_feat_activation(add_feat)
             combined = torch.cat([x_pool, add_feat], dim=1)

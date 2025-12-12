@@ -210,16 +210,19 @@ def cgcnn_features(checkpoint_path: str, data_path: str, lmdb_exist: bool=False)
                          train_ratio = 0.0,
                          val_ratio = 0,
                          test_ratio = 1.0,
+                         cal_ratio = 0.0,
+                         calibration = False,
                          lmdb_exist = lmdb_exist,
                          lmdb_train_name = 'train_data_feat_model.lmdb',
                          lmdb_val_name = 'val_data_feat_model.lmdb',
                          lmdb_test_name = 'test_data_feat_model.lmdb',
+                         lmdb_cal_name = 'cal_data_feat_model.lmdb',
                          batch_size = 64,
                         #  graph_params=checkpoint['hyper_parameters']['data']['graph_params'],
                          graph_params = None,
                          random_seed = checkpoint['hyper_parameters']['data']['random_seed'],
                          compound_features = {'additional_compound_features': None},
-                         atomic_features = {'atom_feature_strategy': {'atom_feature_file': 'embeddings/atom_init_original.json',
+                         atomic_features = {'atom_feature_strategy': {'atom_feature_file': '/Users/elena.patyukova/Documents/github/clean-kpoints/goldilocks_kpoints/embeddings/atom_init_original.json',
                                                                          'soap_atomic': False}})
 
     model=CGCNN_PyG(**checkpoint['hyper_parameters']['model'])

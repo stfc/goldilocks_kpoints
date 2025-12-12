@@ -98,7 +98,7 @@ class Ensembles:
             self.features=np.load(os.path.join(self.path,self.feature_file))
             print(f'** Features are loaded from feature file {os.path.join(self.path,self.feature_file)} **')
         else:
-            print('** Features are calculated **')
+            print('** Features are being calculated **')
             
             features_list = []
             if self.composition_features is not None:

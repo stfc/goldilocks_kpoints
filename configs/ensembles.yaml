@@ -3,7 +3,7 @@ data:
     root_dir: data/cgcnn_junwen_oct_6_kdist
     id_prop_csv: id_prop.csv
     qe_input_files: null #qe_input_files
-    random_seed: 45
+    random_seed: 11
     train_ratio: 0.8
     val_ratio: 0.1
     test_ratio: 0.1
@@ -15,7 +15,7 @@ model:
     n_estimators: 100
     learning_rate: 0.2
     classification: false
-    quantile_regression: true
+    quantile_regression: false
     quantile: 0.9
 
 features:
@@ -40,6 +40,6 @@ features:
     checkpoint_path: trained_models/cgcnn/is_metal_nh3/is_metal.ckpt
     matscibert_features: false
     lmdb_exist: true
-    feature_file: features.npy #null
+    feature_file: null #features.npy #null
 
     
