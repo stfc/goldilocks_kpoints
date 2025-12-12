@@ -9,6 +9,14 @@ class EdgeGatedGraphConvPyG(MessagePassing):
     """Edge-gated graph convolution layer with corrected message normalization."""
     
     def __init__(self, in_channels, out_channels, residual=True, use_layer_norm=True):
+        """Initialize edge-gated graph convolution layer.
+        
+        Args:
+            in_channels: Input feature dimension.
+            out_channels: Output feature dimension.
+            residual: Whether to use residual connections.
+            use_layer_norm: Whether to use layer normalization (True) or batch normalization (False).
+        """
         super().__init__(aggr='add')
         self.residual = residual
         self.use_layer_norm = use_layer_norm
@@ -26,9 +34,29 @@ class EdgeGatedGraphConvPyG(MessagePassing):
             self.norm = nn.BatchNorm1d(out_channels)
 
     def forward(self, x, edge_index, edge_attr):
+        """Forward pass through the edge-gated convolution layer.
+        
+        Args:
+            x: Node features.
+            edge_index: Edge connectivity.
+            edge_attr: Edge features.
+        
+        Returns:
+            Updated node features.
+        """
         return self.propagate(edge_index, x=x, edge_attr=edge_attr)
 
     def message(self, x_i, x_j, edge_attr):
+        """Compute gated messages between nodes.
+        
+        Args:
+            x_i: Source node features.
+            x_j: Target node features.
+            edge_attr: Edge features.
+        
+        Returns:
+            Gated messages.
+        """
         # Compute gate: element-wise combination of source, dest, and edge features
         gate = self.src_gate(x_i) + self.dst_gate(x_j) + self.edge_gate(edge_attr)
         gate = F.silu(gate)
@@ -38,6 +66,15 @@ class EdgeGatedGraphConvPyG(MessagePassing):
         return msg
   
     def update(self, aggr_out, x):
+        """Update node features with aggregated messages.
+        
+        Args:
+            aggr_out: Aggregated messages.
+            x: Original node features.
+        
+        Returns:
+            Updated node features.
+        """
         # Update: source node feature + aggregated messages
         out = self.src_update(x) + aggr_out
         
@@ -56,11 +93,26 @@ class ALIGNNConvPyG(nn.Module):
     """One ALIGNN layer: edge updates on line graph, then node updates on bond graph."""
     
     def __init__(self, hidden_dim, use_layer_norm=True):
+        """Initialize ALIGNN convolution layer.
+        
+        Args:
+            hidden_dim: Hidden feature dimension.
+            use_layer_norm: Whether to use layer normalization.
+        """
         super().__init__()
         self.node_update = EdgeGatedGraphConvPyG(hidden_dim, hidden_dim, use_layer_norm=use_layer_norm)
         self.edge_update = EdgeGatedGraphConvPyG(hidden_dim, hidden_dim, use_layer_norm=use_layer_norm)
 
     def forward(self, data_g, data_lg):
+        """Forward pass through ALIGNN layer.
+        
+        Args:
+            data_g: Atomic graph data.
+            data_lg: Line graph data.
+        
+        Returns:
+            Tuple of (updated node features, updated edge features).
+        """
         # Update edges using line graph
         edge_attr = self.edge_update(data_lg.x, data_lg.edge_index, data_lg.edge_attr)
         
@@ -82,6 +134,14 @@ class RBFExpansion(nn.Module):
         self.gamma = 1.0 / (lengthscale ** 2)
 
     def forward(self, distance):
+        """Apply RBF expansion to distance values.
+        
+        Args:
+            distance: Tensor of distance values.
+        
+        Returns:
+            Expanded features with shape (num_edges, bins).
+        """
         # RBF: exp(-gamma * (distance - center)^2)
         return torch.exp(-self.gamma * (distance.unsqueeze(1) - self.centers) ** 2)
 
@@ -95,6 +155,14 @@ class Standardize(nn.Module):
         self.register_buffer("std", std)
 
     def forward(self, data: Data) -> Data:
+        """Apply standardization to node features.
+        
+        Args:
+            data: PyTorch Geometric Data object.
+        
+        Returns:
+            Data object with standardized node features.
+        """
         data = data.clone()
         data.x = (data.x - self.mean) / (self.std + 1e-8)
         return data
@@ -189,6 +257,15 @@ class ALIGNN_PyG(nn.Module):
             self.output_layer = nn.Linear(hidden_features, 1)
 
     def forward(self, data_g, data_lg):
+        """Forward pass through the ALIGNN model.
+        
+        Args:
+            data_g: Atomic graph data.
+            data_lg: Line graph data.
+        
+        Returns:
+            Model predictions.
+        """
         # Embed features
         x = self.atom_embedding(data_g.x)
         

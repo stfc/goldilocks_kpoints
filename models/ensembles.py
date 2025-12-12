@@ -17,7 +17,20 @@ from utils.compound_features_utils import soap_features, jarvis_features, lattic
 from utils.compound_features_utils import matscibert_features
 
 class Ensembles:
+    """Ensemble models for materials property prediction.
+    
+    Supports Random Forest, Gradient Boosting, and Histogram Gradient Boosting
+    models for both classification and regression tasks.
+    """
     def __init__(self, **config):
+        """Initialize the ensemble model.
+        
+        Args:
+            **config: Configuration dictionary containing:
+                - model: Model configuration (model_name, classification, quantile_regression, etc.)
+                - data: Data configuration (root_dir, id_prop_csv, train_ratio, etc.)
+                - features: Feature configuration (feature_file, composition_features, etc.)
+        """
         # defining the model
         self.classification = config['model']['classification']
         self.quantile_regression = config['model']['quantile_regression']
@@ -94,6 +107,11 @@ class Ensembles:
         self.data['formula']=formulas
         
     def prep_data(self):
+        """Prepare feature data for training.
+        
+        Either loads pre-computed features from a file or computes features
+        using various featurization methods (composition, structure, SOAP, etc.).
+        """
         if self.feature_file is not None:
             self.features=np.load(os.path.join(self.path,self.feature_file))
             print(f'** Features are loaded from feature file {os.path.join(self.path,self.feature_file)} **')
@@ -130,6 +148,15 @@ class Ensembles:
                 np.save(os.path.join(self.path,'features.npy'), self.features)
 
     def train_predict_model(self, save_model_path=None, save_model_name=None):
+        """Train the ensemble model and make predictions on the test set.
+        
+        Args:
+            save_model_path: Optional path to save the trained model.
+            save_model_name: Optional name for the saved model file.
+        
+        Returns:
+            DataFrame containing predictions and ground truth values.
+        """
         print('** Model training **')
         if not hasattr(self, "features"):
             print('Calculate feature first Ensembles.prep_data()!!')

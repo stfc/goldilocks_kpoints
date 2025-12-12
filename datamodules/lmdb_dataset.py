@@ -19,7 +19,17 @@ from torch_geometric.data import Dataset
 
 
 class LMDBPyGDataset(Dataset):
+    """PyTorch Geometric dataset stored in LMDB format.
+    
+    Loads graph data from an LMDB database for efficient I/O during training.
+    """
     def __init__(self, lmdb_path, model='cgcnn'):
+        """Initialize the LMDB dataset.
+        
+        Args:
+            lmdb_path: Path to the LMDB database.
+            model: Model type ('cgcnn' or 'alignn').
+        """
         super().__init__()
         self.lmdb_path = lmdb_path
         self.model = model
@@ -29,9 +39,22 @@ class LMDBPyGDataset(Dataset):
             self.length = txn.stat()['entries']
 
     def len(self):
+        """Get the length of the dataset.
+        
+        Returns:
+            Number of samples in the dataset.
+        """
         return self.length
 
     def get(self, idx):
+        """Get a sample from the dataset.
+        
+        Args:
+            idx: Index of the sample.
+        
+        Returns:
+            Graph data (single Data object for CGCNN, tuple of (graph, line_graph) for ALIGNN).
+        """
         with self.env.begin() as txn:
             byte_data = txn.get(f"{idx}".encode())
             sample = pk.loads(byte_data)
@@ -45,6 +68,14 @@ class LMDBPyGDataset(Dataset):
             raise ValueError(f"Unknown model type: {self.model}")
     
     def collate_fn(self, samples):
+        """Collate function for batching samples.
+        
+        Args:
+            samples: List of graph samples.
+        
+        Returns:
+            Batched graph data.
+        """
         if self.model == "cgcnn":
             return Batch.from_data_list(samples)
 
@@ -74,14 +105,18 @@ def create_lmdb_database(data,
                          model="cgcnn",
                          graph_type="radius",
                          additional_compound_features_df=None):
-    """Read all the structures, build atomic graphs and dump them into LMDB database
-       data: DataFrame from id_prop.csv file
-       file_path: location of LMDB database on the local disk
-       data_dir: directory in which CIF files are located, CIF file names are 'idx.cif'
-       atom_features_dict: dictionary with atomic features, keys are atomic numbers
-       model: 'cgcnn' or 'alignn'
-       graph_type: 'radius' or 'crystalnn'
-       soap_params: if you want to add soap atomic feature
+    """Read all the structures, build atomic graphs and dump them into LMDB database.
+    
+    Args:
+        data: DataFrame from id_prop.csv file.
+        file_path: Location of LMDB database on the local disk.
+        data_dir: Directory in which CIF files are located, CIF file names are 'idx.cif'.
+        atomic_features: Dictionary with atomic features configuration.
+        radius: Cutoff radius for neighbor search.
+        max_neighbors: Maximum number of neighbors per atom.
+        model: Model type ('cgcnn' or 'alignn').
+        graph_type: Graph construction type ('radius' or 'crystalnn').
+        additional_compound_features_df: Optional DataFrame with additional compound features.
     """
 
     env = lmdb.open(os.path.join(data_dir, file_path), map_size=int(1e12))

@@ -5,6 +5,14 @@ from pymatgen.core.composition import Composition
 import pandas as pd
 
 def load_yaml_config(filepath):
+    """Load configuration from a YAML file.
+    
+    Args:
+        filepath: Path to the YAML configuration file.
+    
+    Returns:
+        Dictionary containing the configuration.
+    """
     with open(filepath, 'r') as f:
         config = yaml.safe_load(f)
     return config
@@ -22,22 +30,46 @@ def normalize_formulas(df: pd.DataFrame, formula_column: str = 'formula') -> pd.
     return df 
 
 def count_parameters(model):
+    """Count the number of trainable parameters in a model.
+    
+    Args:
+        model: PyTorch model.
+    
+    Returns:
+        Total number of trainable parameters.
+    """
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 
 def RobustL1Loss(output, log_std, target):
-    """
-    Robust L1 loss using a lorentzian prior. Allows for estimation
-    of an aleatoric uncertainty.
+    """Robust L1 loss using a lorentzian prior.
+    
+    Allows for estimation of an aleatoric uncertainty.
+    
+    Args:
+        output: Model predictions.
+        log_std: Predicted log standard deviation.
+        target: Ground truth values.
+    
+    Returns:
+        Mean loss value.
     """
     loss = np.sqrt(2.0) * torch.abs(output - target) * torch.exp(-log_std) + log_std
     return torch.mean(loss)
 
 
 def RobustL2Loss(output, log_std, target):
-    """
-    Robust L2 loss using a gaussian prior. Allows for estimation
-    of an aleatoric uncertainty.
+    """Robust L2 loss using a gaussian prior.
+    
+    Allows for estimation of an aleatoric uncertainty.
+    
+    Args:
+        output: Model predictions.
+        log_std: Predicted log standard deviation.
+        target: Ground truth values.
+    
+    Returns:
+        Mean loss value.
     """
     # NOTE can we scale log_std by something sensible to improve the OOD behaviour?
     loss = 0.5 * torch.pow(output - target, 2.0) * torch.exp(-2.0 * log_std) + log_std
@@ -46,8 +78,15 @@ def RobustL2Loss(output, log_std, target):
     return torch.mean(loss)
 
 def QuantileLoss(output, target, quantile=0.5):
-    """
-    Quantile loss function.
+    """Quantile loss function.
+    
+    Args:
+        output: Model predictions.
+        target: Ground truth values.
+        quantile: Quantile level (default: 0.5 for median).
+    
+    Returns:
+        Mean quantile loss value.
     """
     error = output - target
     return torch.mean(torch.max((quantile - 1) * error, quantile * error))
@@ -71,10 +110,19 @@ def StudentTLoss(output, log_std, target, nu=3):
     return loss.mean()
 
 def IntervalScoreLoss(y_low, y_high, target, quantile):
-    """Implementation of Interval score loss with boundaries 
-       q_high = 1 + 0.5quantile, q_low = 1 - 0.5quantile
-       loss = (y_high-y_low)+ 2/quantile * (y_low-y_target)*1(y<y_low)+2/quantile*(y_target-y_high)*1(y>y_high)
-       target [batch] = y_target
+    """Implementation of Interval score loss with boundaries.
+    
+    q_high = 1 + 0.5quantile, q_low = 1 - 0.5quantile
+    loss = (y_high-y_low)+ 2/quantile * (y_low-y_target)*1(y<y_low)+2/quantile*(y_target-y_high)*1(y>y_high)
+    
+    Args:
+        y_low: Lower bound predictions.
+        y_high: Upper bound predictions.
+        target: Ground truth values.
+        quantile: Quantile level.
+    
+    Returns:
+        Mean interval score loss value.
     """
     width = y_high - y_low
     below = (target < y_low).float()
@@ -89,7 +137,17 @@ def IntervalScoreLoss(y_low, y_high, target, quantile):
 
 
 def concordance_index(y_true, y_pred):
-    """Calculate concordance Index (C-index)"""
+    """Calculate concordance Index (C-index).
+    
+    Measures the proportion of pairs of observations that are correctly ordered.
+    
+    Args:
+        y_true: Ground truth values.
+        y_pred: Predicted values.
+    
+    Returns:
+        C-index value between 0 and 1.
+    """
     n = 0
     n_concordant = 0
     for i in range(len(y_true)):

@@ -21,7 +21,14 @@ def load_atom_features(atom_init_path: str) -> Dict:
 
 def atomic_soap_features(structure, soap_params):
     """Produce SOAP features for a structure assuming that the structure is a single element
-       (so it is a lattice representation)
+       (so it is a lattice representation).
+    
+    Args:
+        structure: Pymatgen Structure object.
+        soap_params: Dictionary containing SOAP parameters (r_cut, n_max, l_max, sigma).
+    
+    Returns:
+        SOAP features array.
     """
     from dscribe.descriptors import SOAP
     from pymatgen.io.ase import AseAtomsAdaptor
@@ -41,6 +48,13 @@ def atomic_soap_features(structure, soap_params):
 def atomic_soap_features_for_composition(structure, soap_params):
     """Produce SOAP features for a structure assuming that the structure is a single element
        (so it is a lattice representation). Suitable for Crabnet.
+    
+    Args:
+        structure: Pymatgen Structure object.
+        soap_params: Dictionary containing SOAP parameters (r_cut, n_max, l_max, sigma).
+    
+    Returns:
+        SOAP features array averaged per element type.
     """
     from dscribe.descriptors import SOAP
     from pymatgen.io.ase import AseAtomsAdaptor
@@ -67,7 +81,14 @@ def atomic_soap_features_for_composition(structure, soap_params):
     return np.array(vecs)
 
 def atom_features_from_structure(structure: Structure, atomic_features: Dict):
-    """Calculate an array of atomic features for structure
+    """Calculate an array of atomic features for structure.
+    
+    Args:
+        structure: Pymatgen Structure object.
+        atomic_features: Dictionary containing atomic feature configuration.
+    
+    Returns:
+        List of atomic feature arrays, one per atom in the structure.
     """
     atom_features_dict=load_atom_features(atomic_features['atom_feature_strategy']['atom_feature_file'])
     

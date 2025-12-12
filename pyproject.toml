@@ -3,7 +3,7 @@ name = "kpoints"
 version = "0.1.0"
 description = "kpoints models"
 authors = ["Elena Patyukova <elena.patyukova@stfc.ac.uk>"]
-license = "MIT"
+license = "CC-BY-4.0"
 readme = "README.md"
 
 [tool.poetry.dependencies]

@@ -49,9 +49,19 @@ class ResidualNetwork(nn.Module):
 
 # %%
 class Embedder(nn.Module):
+    """Embedding layer for element features.
+    
+    Loads element embeddings from a CSV file and projects them to the model dimension.
+    """
     def __init__(self,
                  d_model,
                  compute_device=None):
+        """Initialize the embedder.
+        
+        Args:
+            d_model: Model dimension.
+            compute_device: Device to place embeddings on.
+        """
         super().__init__()
         self.d_model = d_model
         self.compute_device = compute_device
@@ -72,6 +82,14 @@ class Embedder(nn.Module):
             .to(self.compute_device, dtype=data_type_torch)
 
     def forward(self, src):
+        """Forward pass through the embedder.
+        
+        Args:
+            src: Element indices tensor.
+        
+        Returns:
+            Embedded element features.
+        """
         mat2vec_emb = self.cbfv(src)
         x_emb = self.fc_mat2vec(mat2vec_emb)
         return x_emb
@@ -112,6 +130,14 @@ class FractionalEncoder(nn.Module):
         pe = self.register_buffer('pe', pe)
 
     def forward(self, x):
+        """Forward pass through the fractional encoder.
+        
+        Args:
+            x: Fractional composition values.
+        
+        Returns:
+            Positional encoding for fractional values.
+        """
         x = x.clone()
         if self.log10:
             x = 0.0025 * (torch.log2(x))**2
@@ -128,6 +154,11 @@ class FractionalEncoder(nn.Module):
 
 # %%
 class Encoder(nn.Module):
+    """Transformer encoder for element sequences.
+    
+    Encodes element embeddings with positional encodings and applies
+    transformer attention layers.
+    """
     def __init__(self,
                  d_model,
                  N,
@@ -135,6 +166,16 @@ class Encoder(nn.Module):
                  frac=False,
                  attn=True,
                  compute_device=None):
+        """Initialize the encoder.
+        
+        Args:
+            d_model: Model dimension.
+            N: Number of transformer layers.
+            heads: Number of attention heads.
+            frac: Whether to multiply by fractional composition.
+            attn: Whether to use attention layers.
+            compute_device: Device to place model on.
+        """
         super().__init__()
         self.d_model = d_model
         self.N = N
@@ -160,6 +201,15 @@ class Encoder(nn.Module):
                                                              num_layers=self.N)
 
     def forward(self, src, frac):
+        """Forward pass through the encoder.
+        
+        Args:
+            src: Element indices tensor.
+            frac: Fractional composition tensor.
+        
+        Returns:
+            Encoded element features.
+        """
         x = self.embed(src) * 2**self.emb_scaler
         mask = frac.unsqueeze(dim=-1)
         mask = torch.matmul(mask, mask.transpose(-2, -1))
@@ -192,6 +242,11 @@ class Encoder(nn.Module):
 
 # %%
 class CrabNet(nn.Module):
+    """CrabNet model for materials property prediction.
+    
+    A transformer-based model that processes element sequences with fractional
+    compositions to predict material properties.
+    """
     def __init__(self,
                  out_dims=3,
                  d_model=512,
@@ -199,6 +254,16 @@ class CrabNet(nn.Module):
                  heads=4,
                  compute_device=None,
                  residual_nn='roost'):
+        """Initialize the CrabNet model.
+        
+        Args:
+            out_dims: Output dimension (2 for robust regression, 1 for standard regression).
+            d_model: Model dimension.
+            N: Number of transformer layers.
+            heads: Number of attention heads.
+            compute_device: Device to place model on.
+            residual_nn: Type of residual network ('roost' or 'simple').
+        """
         super().__init__()
         self.avg = True
         self.out_dims = out_dims
@@ -224,6 +289,15 @@ class CrabNet(nn.Module):
                                              self.out_hidden)
 
     def forward(self, src, frac):
+        """Forward pass through the CrabNet model.
+        
+        Args:
+            src: Element indices tensor.
+            frac: Fractional composition tensor.
+        
+        Returns:
+            Model predictions.
+        """
         output = self.encoder(src, frac)
 
         # average the "element contribution" at the end

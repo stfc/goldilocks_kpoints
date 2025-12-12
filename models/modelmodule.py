@@ -24,7 +24,22 @@ import os
 
 
 class GNNModel(L.LightningModule):
+    """PyTorch Lightning module for Graph Neural Network models (CGCNN and ALIGNN).
+    
+    This module wraps GNN models and provides training, validation, and testing
+    functionality with support for classification, regression, robust regression,
+    and quantile regression tasks.
+    """
     def __init__(self, **config):
+        """Initialize the GNN model.
+        
+        Args:
+            **config: Configuration dictionary containing:
+                - data: Data configuration (batch_size, random_seed, etc.)
+                - model: Model configuration (name, architecture params, etc.)
+                - optim: Optimizer configuration (learning_rate, momentum, etc.)
+                - loss: Loss function configuration (name, quantile, etc.)
+        """
         super().__init__()
         self.save_hyperparameters()
         L.seed_everything(config['data']['random_seed'])
@@ -130,6 +145,15 @@ class GNNModel(L.LightningModule):
 
 
     def forward(self, graphs):
+        """Forward pass through the model.
+        
+        Args:
+            graphs: Input graph data. For ALIGNN, a tuple of (graph, line_graph).
+                   For CGCNN, a single graph Data object.
+        
+        Returns:
+            Model predictions.
+        """
         if(self.model_name == 'alignn'):
             g,lg = graphs
             return self.model(g,lg)
@@ -138,6 +162,11 @@ class GNNModel(L.LightningModule):
             return self.model(g)
     
     def configure_optimizers(self):
+        """Configure optimizer and learning rate scheduler for training.
+        
+        Returns:
+            List containing optimizer and learning rate scheduler.
+        """
         if(self.model_name == 'alignn'):
             optimizer = optim.AdamW(self.model.parameters(), self.learning_rate,
                                   weight_decay=self.decay)
@@ -153,6 +182,15 @@ class GNNModel(L.LightningModule):
             return [optimizer]
     
     def training_step(self, batch, batch_idx):
+        """Training step for a single batch.
+        
+        Args:
+            batch: Batch of graph data.
+            batch_idx: Index of the batch.
+        
+        Returns:
+            Training loss value.
+        """
         output=self(batch)
         if(self.model_name == 'alignn'):
             g, _ = batch
@@ -204,6 +242,15 @@ class GNNModel(L.LightningModule):
         return loss
     
     def validation_step(self, batch, batch_idx):
+        """Validation step for a single batch.
+        
+        Args:
+            batch: Batch of graph data.
+            batch_idx: Index of the batch.
+        
+        Returns:
+            Validation loss value.
+        """
         output=self(batch)
         if(self.model_name == 'alignn'):
             g, _ = batch
@@ -255,6 +302,12 @@ class GNNModel(L.LightningModule):
         return loss
     
     def test_step(self, batch, batch_idx):
+        """Test step for a single batch.
+        
+        Args:
+            batch: Batch of graph data.
+            batch_idx: Index of the batch.
+        """
         output=self(batch)
         if(self.model_name == 'alignn'):
             g, _ = batch
@@ -306,6 +359,20 @@ class GNNModel(L.LightningModule):
         return
     
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
+        """Prediction step for a single batch.
+        
+        Args:
+            batch: Batch of graph data.
+            batch_idx: Index of the batch.
+            dataloader_idx: Index of the dataloader.
+        
+        Returns:
+            Tuple containing predictions, targets, and sample indices.
+            For classification: (predictions, probabilities, targets, indices)
+            For robust regression: (predictions, std, targets, indices)
+            For quantile regression: (y_low, y_high, targets, indices)
+            For standard regression: (predictions, targets, indices)
+        """
         output=self(batch)
         if(self.model_name == 'alignn'):
             g, _ = batch
@@ -332,7 +399,22 @@ class GNNModel(L.LightningModule):
 
 
 class CrabNetLightning(L.LightningModule):
+    """PyTorch Lightning module for CrabNet model.
+    
+    This module wraps the CrabNet transformer-based model for materials property
+    prediction with support for classification, regression, robust regression,
+    and quantile regression tasks.
+    """
     def __init__(self, **config):
+        """Initialize the CrabNet Lightning module.
+        
+        Args:
+            **config: Configuration dictionary containing:
+                - data: Data configuration (batch_size, random_seed, train_path, etc.)
+                - model: Model configuration (out_dims, d_model, N, heads, etc.)
+                - optim: Optimizer configuration (base_lr, max_lr, schedule, etc.)
+                - loss: Loss function configuration (name, quantile, etc.)
+        """
         super().__init__()
         self.save_hyperparameters()
         L.seed_everything(config['data']['random_seed'])
@@ -418,10 +500,24 @@ class CrabNetLightning(L.LightningModule):
 
 
     def forward(self, src, frac):
+        """Forward pass through the CrabNet model.
+        
+        Args:
+            src: Source tensor containing element indices.
+            frac: Fractional composition tensor.
+        
+        Returns:
+            Model predictions.
+        """
         out=self.model(src, frac)
         return out
 
     def configure_optimizers(self):
+        """Configure optimizer and learning rate scheduler for training.
+        
+        Returns:
+            List containing optimizer and learning rate scheduler.
+        """
         base_optim = Lamb(params=self.model.parameters(),lr=0.001)
         optimizer = Lookahead(base_optimizer=base_optim)
         lr_scheduler = CyclicLR(optimizer,
@@ -436,6 +532,15 @@ class CrabNetLightning(L.LightningModule):
         # return [optimizer]
 
     def training_step(self, batch, batch_idx):
+        """Training step for a single batch.
+        
+        Args:
+            batch: Batch of data containing (X, y, formula).
+            batch_idx: Index of the batch.
+        
+        Returns:
+            Training loss value.
+        """
         X, y, formula = batch
         # y = self.scaler.scale(y)
         src, frac = X.squeeze(-1).chunk(2, dim=1)
@@ -490,6 +595,15 @@ class CrabNetLightning(L.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
+        """Validation step for a single batch.
+        
+        Args:
+            batch: Batch of data containing (X, y, formula).
+            batch_idx: Index of the batch.
+        
+        Returns:
+            Validation loss value.
+        """
         X, y, formula = batch
         # y = self.scaler.scale(y)
         src, frac = X.squeeze(-1).chunk(2, dim=1)
@@ -543,6 +657,12 @@ class CrabNetLightning(L.LightningModule):
         return val_loss
      
     def test_step(self, batch, batch_idx):
+        """Test step for a single batch.
+        
+        Args:
+            batch: Batch of data containing (X, y, formula).
+            batch_idx: Index of the batch.
+        """
         X, y, formula = batch
         # y = self.scaler.scale(y)
         src, frac = X.squeeze(-1).chunk(2, dim=1)
@@ -596,6 +716,20 @@ class CrabNetLightning(L.LightningModule):
         return 
     
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
+        """Prediction step for a single batch.
+        
+        Args:
+            batch: Batch of data containing (X, y, formula).
+            batch_idx: Index of the batch.
+            dataloader_idx: Index of the dataloader.
+        
+        Returns:
+            Tuple containing predictions, targets, and formulas.
+            For classification: (predictions, probabilities, targets, formulas)
+            For robust regression: (predictions, std, targets, formulas)
+            For quantile regression: (y_low, y_high, targets, formulas)
+            For standard regression: (predictions, targets, formulas)
+        """
         X, y, formula = batch
         # y = self.scaler.scale(y)
         src, frac = X.squeeze(-1).chunk(2, dim=1)

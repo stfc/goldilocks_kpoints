@@ -10,11 +10,18 @@ def build_alignn_graph_with_angles_from_structure(structure: Structure,
                                                   atom_features: List,
                                                   radius: float = 10.0,
                                                   max_neighbors: int = 12):
-    """
-    Generate ALIGNN-style atomic graph and line graph with angle (cosine) features.
+    """Generate ALIGNN-style atomic graph and line graph with angle (cosine) features.
+    
+    Args:
+        structure: Pymatgen Structure object.
+        atom_features: List of atomic feature arrays.
+        radius: Cutoff radius for neighbor search.
+        max_neighbors: Maximum number of neighbors per atom.
+    
     Returns:
-        g: atomic PyG graph with node & edge features
-        lg: line graph with angle cosines as edge features
+        Tuple of (g, lg):
+            g: Atomic PyG graph with node & edge features.
+            lg: Line graph with angle cosines as edge features.
     """
     edge_index = []
     edge_attr = []

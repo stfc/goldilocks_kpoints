@@ -23,6 +23,11 @@ from models.ensembles import Ensembles
 from models.modelmodule import CrabNetLightning
 
 def crabnet(**config):
+    """Run prediction using CrabNet model.
+    
+    Args:
+        **config: Configuration dictionary containing model and data settings.
+    """
     print(config['model']['name'])
     data =  CrabNetDataModule(**config['data'])
     model = CrabNetLightning(**config)
@@ -165,6 +170,11 @@ def crabnet(**config):
     return
 
 def gnn_neural_networks(**config):
+    """Run prediction using GNN models (CGCNN or ALIGNN).
+    
+    Args:
+        **config: Configuration dictionary containing model and data settings.
+    """
     config['data']['lmdb_exist']=True
     try:
         data = GNNDataModule(**config['data'])
@@ -312,6 +322,13 @@ def gnn_neural_networks(**config):
     return
 
 def ensembles(save_model_path=None, save_model_name=None, **config):
+    """Run prediction using ensemble models.
+    
+    Args:
+        save_model_path: Optional path to save the trained model.
+        save_model_name: Optional name for the saved model file.
+        **config: Configuration dictionary containing model and data settings.
+    """
     model = Ensembles(**config)
     model.prep_data()
     predictions = model.train_predict_model(save_model_path=save_model_path, 
