@@ -15,7 +15,10 @@ from utils.compound_features_utils import matscibert_features
 from utils.atom_features_utils import atom_features_from_structure
 
 class GNNDataModule(L.LightningDataModule):
-    """ Datamodule for neural network models (CGCNN, ALIGNN)
+    """Datamodule for neural network models (CGCNN, ALIGNN).
+    
+    Handles data loading, preprocessing, and dataset creation for graph neural
+    network models. Supports LMDB database creation and loading.
     """
     def __init__(self, root_dir: str,
                  model_name: str,
@@ -224,22 +227,62 @@ class GNNDataModule(L.LightningDataModule):
             self.cal_collate = self.cal_dataset.collate_fn
   
     def train_dataloader(self,shuffle=True):
+        """Create training dataloader.
+        
+        Args:
+            shuffle: Whether to shuffle the data.
+        
+        Returns:
+            DataLoader for training data.
+        """
         return DataLoader(self.train_dataset, batch_size=self.batch_size,
                           num_workers=0,collate_fn=self.train_collate, 
                           pin_memory=self.pin_memory, shuffle=shuffle)
     def val_dataloader(self,shuffle=False):
+        """Create validation dataloader.
+        
+        Args:
+            shuffle: Whether to shuffle the data.
+        
+        Returns:
+            DataLoader for validation data.
+        """
         return DataLoader(self.val_dataset, batch_size=self.batch_size,
                           num_workers=0, collate_fn=self.val_collate, 
                           pin_memory=self.pin_memory, shuffle=shuffle)
     def test_dataloader(self,shuffle=False):
+        """Create test dataloader.
+        
+        Args:
+            shuffle: Whether to shuffle the data.
+        
+        Returns:
+            DataLoader for test data.
+        """
         return DataLoader(self.test_dataset, batch_size=self.batch_size,
                           num_workers=0, collate_fn=self.test_collate, 
                           pin_memory=self.pin_memory, shuffle=shuffle)
     def cal_dataloader(self,shuffle=False):
+        """Create calibration dataloader.
+        
+        Args:
+            shuffle: Whether to shuffle the data.
+        
+        Returns:
+            DataLoader for calibration data.
+        """
         return DataLoader(self.cal_dataset, batch_size=self.batch_size,
                           num_workers=0, collate_fn=self.cal_collate, 
                           pin_memory=self.pin_memory, shuffle=shuffle)
     def predict_dataloader(self,shuffle=False):
+        """Create prediction dataloader.
+        
+        Args:
+            shuffle: Whether to shuffle the data.
+        
+        Returns:
+            DataLoader for prediction data.
+        """
         if self.calibration:
             pass
         else:

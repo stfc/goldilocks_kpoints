@@ -58,6 +58,16 @@ def build_radius_cgcnn_graph_from_structure(structure: Structure,
 def build_crystalnn_cgcnn_graph_from_structure(structure: Structure, 
                                          atom_features: List, 
                                          radius: float=10.0) -> Data:
+    """Build CGCNN graph from structure using CrystalNN neighbor finder.
+    
+    Args:
+        structure: Pymatgen Structure object.
+        atom_features: List of atomic feature arrays.
+        radius: Cutoff radius for neighbor search.
+    
+    Returns:
+        PyTorch Geometric Data object with graph structure and features.
+    """
     x = torch.tensor(atom_features, dtype=torch.float32) 
     # Edge features: collect neighbors
     edge_index = []

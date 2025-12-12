@@ -15,6 +15,11 @@ data_type_np = np.float32
 data_type_torch = torch.float32
 
 class CrabNetDataModule(L.LightningDataModule):
+    """Datamodule for CrabNet model.
+    
+    Handles data loading, preprocessing, and dataset creation for the CrabNet
+    transformer-based model. Converts chemical formulas to element descriptor matrices.
+    """
     def __init__(self, root_dir: str,
                  id_prop_csv: str,
                  train_ratio = 0.8,
@@ -133,14 +138,34 @@ class CrabNetDataModule(L.LightningDataModule):
         self.test_dataset = EDMDataset(self.test_main_data, self.test_n_elements)
 
     def train_dataloader(self):
+        """Create training dataloader.
+        
+        Returns:
+            DataLoader for training data.
+        """
         return DataLoader(self.train_dataset, batch_size=self.batch_size,
                           pin_memory=self.pin_memory, shuffle=True)
     def val_dataloader(self):
+        """Create validation dataloader.
+        
+        Returns:
+            DataLoader for validation data.
+        """
         return DataLoader(self.val_dataset, batch_size=self.batch_size,
                         pin_memory=self.pin_memory, shuffle=False)
     def test_dataloader(self):
+        """Create test dataloader.
+        
+        Returns:
+            DataLoader for test data.
+        """
         return DataLoader(self.test_dataset, batch_size=self.test_len_data,
                         pin_memory=self.pin_memory, shuffle=False)
     def predict_dataloader(self):
+        """Create prediction dataloader.
+        
+        Returns:
+            DataLoader for prediction data.
+        """
         return DataLoader(self.test_dataset, batch_size=self.test_len_data,
                         pin_memory=self.pin_memory, shuffle=False)

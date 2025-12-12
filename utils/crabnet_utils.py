@@ -20,17 +20,39 @@ data_type_np = np.float32
 
 
 class Scaler():
+    """Scaler for normalizing data using mean and standard deviation."""
     def __init__(self, data):
+        """Initialize the scaler with data statistics.
+        
+        Args:
+            data: Data tensor to compute mean and std from.
+        """
         self.data = torch.as_tensor(data)
         self.mean = torch.mean(self.data)
         self.std = torch.std(self.data)
 
     def scale(self, data):
+        """Scale data using stored mean and std.
+        
+        Args:
+            data: Data to scale.
+        
+        Returns:
+            Scaled data.
+        """
         data = torch.as_tensor(data)
         data_scaled = (data - self.mean) / self.std
         return data_scaled
 
     def unscale(self, data_scaled):
+        """Unscale data using stored mean and std.
+        
+        Args:
+            data_scaled: Scaled data to unscale.
+        
+        Returns:
+            Unscaled data.
+        """
         data_scaled = torch.as_tensor(data_scaled)
         data = data_scaled * self.std + self.mean
         return data
@@ -44,15 +66,37 @@ class Scaler():
         self.std = state_dict['std']
 
 class DummyScaler():
+    """Dummy scaler that does not perform any scaling."""
     def __init__(self, data):
+        """Initialize the dummy scaler (stores statistics but doesn't scale).
+        
+        Args:
+            data: Data tensor to compute mean and std from (for compatibility).
+        """
         self.data = torch.as_tensor(data)
         self.mean = torch.mean(self.data)
         self.std = torch.std(self.data)
 
     def scale(self, data):
+        """Return data unchanged.
+        
+        Args:
+            data: Data to 'scale'.
+        
+        Returns:
+            Data unchanged.
+        """
         return torch.as_tensor(data)
 
     def unscale(self, data_scaled):
+        """Return data unchanged.
+        
+        Args:
+            data_scaled: Data to 'unscale'.
+        
+        Returns:
+            Data unchanged.
+        """
         return torch.as_tensor(data_scaled)
 
     def state_dict(self):
@@ -86,6 +130,14 @@ class EDMDataset(Dataset):
         return self.X.shape[0]
 
     def __getitem__(self, idx):
+        """Get a sample from the dataset.
+        
+        Args:
+            idx: Index of the sample.
+        
+        Returns:
+            Tuple of (X, y, formula).
+        """
         X = self.X[idx, :, :]
         y = self.y[idx]
         formula = self.formula[idx]
@@ -235,10 +287,13 @@ class Lamb(Optimizer):
         super(Lamb, self).__init__(params, defaults)
 
     def step(self, closure=None):
-        """Performs a single optimization step.
-        Arguments:
-            closure (callable, optional): A closure that reevaluates the model
-                and returns the loss.
+        """Perform a single optimization step.
+        
+        Args:
+            closure: Optional closure that reevaluates the model and returns the loss.
+        
+        Returns:
+            Loss value if closure is provided, None otherwise.
         """
         loss = None
         if closure is not None:
@@ -309,7 +364,19 @@ class Lamb(Optimizer):
 
 
 class Lookahead(Optimizer):
+    """Lookahead optimizer wrapper.
+    
+    Implements the Lookahead optimization algorithm that maintains a slow
+    moving average of model parameters.
+    """
     def __init__(self, base_optimizer, alpha=0.5, k=6):
+        """Initialize the Lookahead optimizer.
+        
+        Args:
+            base_optimizer: Base optimizer to wrap.
+            alpha: Slow update rate (between 0 and 1).
+            k: Number of steps before updating slow weights.
+        """
         if not 0.0 <= alpha <= 1.0:
             raise ValueError(f"Invalid slow update rate: {alpha}")
         if not 1 <= k:
@@ -326,6 +393,11 @@ class Lookahead(Optimizer):
                 group.setdefault(name, default)
 
     def update_slow(self, group):
+        """Update slow weights for a parameter group.
+        
+        Args:
+            group: Parameter group to update.
+        """
         for fast_p in group["params"]:
             if fast_p.grad is None:
                 continue
@@ -338,10 +410,19 @@ class Lookahead(Optimizer):
             fast_p.data.copy_(slow)
 
     def sync_lookahead(self):
+        """Synchronize lookahead weights for all parameter groups."""
         for group in self.param_groups:
             self.update_slow(group)
 
     def step(self, closure=None):
+        """Perform a single optimization step.
+        
+        Args:
+            closure: Optional closure that reevaluates the model and returns the loss.
+        
+        Returns:
+            Loss value if closure is provided, None otherwise.
+        """
         # assert id(self.param_groups) == id(self.base_optimizer.param_groups)
         loss = self.base_optimizer.step(closure)
         for group in self.param_groups:

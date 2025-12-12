@@ -23,13 +23,33 @@ class Standardize(nn.Module):
         return data
 
 class RBFExpansion(nn.Module):
+    """Radial Basis Function expansion for edge features.
+    
+    Expands scalar distance values into a vector using Gaussian RBF kernels.
+    """
     def __init__(self, vmin=0, vmax=8, bins=40, lengthscale=None):
+        """Initialize RBF expansion.
+        
+        Args:
+            vmin: Minimum value for RBF centers.
+            vmax: Maximum value for RBF centers.
+            bins: Number of RBF centers.
+            lengthscale: Length scale for Gaussian kernels. If None, computed from bin spacing.
+        """
         super().__init__()
         centers = torch.linspace(vmin, vmax, bins)
         self.register_buffer("centers", centers)
         self.gamma = 1 / ((lengthscale or (centers[1] - centers[0]).item()) ** 2)
 
     def forward(self, distance):
+        """Apply RBF expansion to distance values.
+        
+        Args:
+            distance: Tensor of distance values.
+        
+        Returns:
+            Expanded features with shape (num_edges, bins).
+        """
         return torch.exp(-self.gamma * (distance.unsqueeze(1) - self.centers) ** 2)
 
 class CGCNNConv(MessagePassing):
@@ -38,6 +58,13 @@ class CGCNNConv(MessagePassing):
        z_ij = concat (v_i, v_j, e_ij) - concatinated features of vertexes and edges between them
     """
     def __init__(self, node_dim, edge_dim, out_dim):
+        """Initialize CGCNN convolution layer.
+        
+        Args:
+            node_dim: Dimension of node features.
+            edge_dim: Dimension of edge features.
+            out_dim: Output dimension.
+        """
         super().__init__(aggr='add')  # sum aggregation
         
         self.lin_f = Linear(2 * node_dim + edge_dim, out_dim)
@@ -45,17 +72,44 @@ class CGCNNConv(MessagePassing):
         self.batch_norm = BatchNorm1d(out_dim)
 
     def forward(self, x, edge_index, edge_attr):
-        # x: [num_nodes, node_dim]
-        # edge_attr: [num_edges, edge_dim]
+        """Forward pass through the convolution layer.
+        
+        Args:
+            x: Node features of shape [num_nodes, node_dim].
+            edge_index: Edge connectivity of shape [2, num_edges].
+            edge_attr: Edge features of shape [num_edges, edge_dim].
+        
+        Returns:
+            Updated node features.
+        """
         return self.propagate(edge_index, x=x, edge_attr=edge_attr)
 
     def message(self, x_i, x_j, edge_attr):
+        """Compute messages between nodes.
+        
+        Args:
+            x_i: Source node features.
+            x_j: Target node features.
+            edge_attr: Edge features.
+        
+        Returns:
+            Gated messages.
+        """
         z = torch.cat([x_i, x_j, edge_attr], dim=1)
         gate = torch.sigmoid(self.lin_f(z))
         msg = F.softplus(self.lin_s(z))
         return gate * msg
 
     def update(self, aggr_out, x):
+        """Update node features with aggregated messages.
+        
+        Args:
+            aggr_out: Aggregated messages.
+            x: Original node features.
+        
+        Returns:
+            Updated node features.
+        """
         return self.batch_norm(aggr_out+x)
 
 
@@ -136,6 +190,14 @@ class CGCNN_PyG(nn.Module):
             self.fc_out = nn.Linear(h_fea_len, 1)
         
     def forward(self, data):
+        """Forward pass through the CGCNN model.
+        
+        Args:
+            data: PyTorch Geometric Data object containing graph structure and features.
+        
+        Returns:
+            Model predictions.
+        """
         if self.additional_compound_features:
             x, edge_index, edge_attr, batch, add_feat, y = data.x, data.edge_index, data.edge_attr, data.batch, data.additional_compound_features, data.y
             add_feat = add_feat.view(-1, self.add_feat_len)
@@ -171,7 +233,14 @@ class CGCNN_PyG(nn.Module):
         return out
     
     def extract_crystal_repr(self, data):
-        """Extract crystal representations"""
+        """Extract crystal representations (embeddings) from the model.
+        
+        Args:
+            data: PyTorch Geometric Data object containing graph structure and features.
+        
+        Returns:
+            Crystal representation embeddings after pooling.
+        """
         if self.additional_compound_features:
             x, edge_index, edge_attr, batch, add_feat, y = data.x, data.edge_index, data.edge_attr, data.batch, data.additional_compound_features, data.y
             add_feat = add_feat.view(-1, self.add_feat_len)

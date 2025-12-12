@@ -27,7 +27,15 @@ import warnings
 def matminer_composition_features(df: pd.DataFrame, 
                                   list_of_features: List, 
                                   formula_column = 'formula'):
-    """Function to calculate composition features
+    """Calculate composition features using matminer featurizers.
+    
+    Args:
+        df: DataFrame containing chemical formulas.
+        list_of_features: List of matminer composition featurizer names to use.
+        formula_column: Name of the column containing formulas.
+    
+    Returns:
+        Array of composition features.
     """
     df = normalize_formulas(df, formula_column)
     df['composition'] = [Composition(form) for form in df[formula_column]]
@@ -58,11 +66,15 @@ def matminer_composition_features(df: pd.DataFrame,
 def matminer_structure_features(df: pd.DataFrame,
                                 list_of_features: List,
                                 structure_column = 'structure'):
-    """Function to calculate structure features
-       Input:
-       df: dataframe with compounds' information 
-       list_of_features: list of matminer structure feature methods
-       structure_column: column in the dataframe which contains pymatgen structures for compounds.
+    """Calculate structure features using matminer featurizers.
+    
+    Args:
+        df: DataFrame with compounds' information.
+        list_of_features: List of matminer structure featurizer names to use.
+        structure_column: Column in the dataframe which contains pymatgen structures.
+    
+    Returns:
+        Array of structure features.
     """
     list_of_feat_meth=[]
     for feat in list_of_features:
@@ -89,10 +101,17 @@ def matminer_structure_features(df: pd.DataFrame,
 
 
 def lattice_features(df: pd.DataFrame, structure_column: str = 'structure'):
-    """Create lattice features:
-       lattice constants, lattice angles,
-       reciprocal lattice constants, reciprocal lattice angles,
-       space_group_number, crystal_system, bravais_lattice
+    """Create lattice features.
+    
+    Extracts lattice constants, lattice angles, reciprocal lattice constants,
+    reciprocal lattice angles, space group number, crystal system, and Bravais lattice.
+    
+    Args:
+        df: DataFrame containing structure information.
+        structure_column: Column name containing pymatgen Structure objects.
+    
+    Returns:
+        Array of lattice features.
     """
     # 7 crystal systems
     crystal_system_map = {
@@ -156,7 +175,15 @@ def lattice_features(df: pd.DataFrame, structure_column: str = 'structure'):
 def soap_features(df: pd.DataFrame,
                   soap_params = {'r_cut': 10.0, 'n_max': 8, 'l_max': 6, 'sigma': 1.0},
                   structure_column = 'structure'):
-    """Function to calculate SOAP compound features, all atoms are assumed to be the same
+    """Calculate SOAP compound features, all atoms are assumed to be the same.
+    
+    Args:
+        df: DataFrame containing structure information.
+        soap_params: Dictionary containing SOAP parameters (r_cut, n_max, l_max, sigma).
+        structure_column: Column name containing pymatgen Structure objects.
+    
+    Returns:
+        Array of SOAP features averaged over all atoms.
     """
     soap_featurizer = SOAP(species=['X'],  # or whatever elements you're using
                                r_cut=soap_params['r_cut'],
@@ -181,7 +208,14 @@ def soap_features(df: pd.DataFrame,
 
 def jarvis_features(df: pd.DataFrame,
                     structure_column = 'structure'):
-    """This function is for calculation of Jarvis features
+    """Calculate Jarvis CFID features for structures.
+    
+    Args:
+        df: DataFrame containing structure information.
+        structure_column: Column name containing pymatgen Structure objects.
+    
+    Returns:
+        Array of Jarvis CFID features.
     """
     jarvis_featurizer = JarvisCFID()
     jarvis_feat_len = len(jarvis_featurizer.featurize(df.iloc[0][structure_column]))
@@ -197,7 +231,15 @@ def jarvis_features(df: pd.DataFrame,
     return features
 
 def cgcnn_features(checkpoint_path: str, data_path: str, lmdb_exist: bool=False):
-    """Create a dataframe with embeddings extracted from prevoiusly trained CGCNN model
+    """Create a dataframe with embeddings extracted from previously trained CGCNN model.
+    
+    Args:
+        checkpoint_path: Path to the trained CGCNN model checkpoint.
+        data_path: Path to the data directory.
+        lmdb_exist: Whether LMDB database already exists.
+    
+    Returns:
+        Array of CGCNN embeddings.
     """
     from datamodules.gnn_datamodule import GNNDataModule
     from models.cgcnn import CGCNN_PyG
@@ -242,8 +284,13 @@ def cgcnn_features(checkpoint_path: str, data_path: str, lmdb_exist: bool=False)
     return np.array(df)
 
 def remove_kpoints_section_robust(qe_input_text):
-    """
-    Removes kpoints section from qe input file
+    """Remove kpoints section from QE input file.
+    
+    Args:
+        qe_input_text: Text content of the QE input file.
+    
+    Returns:
+        Text with kpoints section removed.
     """
     import re
     
@@ -260,7 +307,16 @@ def remove_kpoints_section_robust(qe_input_text):
     return result.strip()
 
 def matscibert_features(df: pd.DataFrame = None, structure_column = 'structure', data_path: str = None):
-    """Create embeddings of QE-input files without k-points with MatSciBert model"""
+    """Create embeddings of QE-input files without k-points with MatSciBert model.
+    
+    Args:
+        df: Optional DataFrame containing structure information.
+        structure_column: Column name containing pymatgen Structure objects.
+        data_path: Optional path to QE input files directory.
+    
+    Returns:
+        Array of MatSciBert embeddings.
+    """
     import math
     import torch
     from transformers import AutoTokenizer, AutoModel
