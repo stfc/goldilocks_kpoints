@@ -166,6 +166,12 @@ A calculation is considered converged if the total energy change for 3 consecuti
 goldilocks_kpoints/
 ├── configs/              # Configuration files for different models
 ├── data/                 # Data directory (CIF files, CSV files)
+├── trained_models/       # The place to store trained models
+├── outputs/              # The place to write outputs to
+├── embeddings/
+|   ├── atom_init_original.json
+|   ├── atom_init_with_sssp_cutoffs.json
+|   └── mat2vec.json
 ├── datamodules/          # PyTorch Lightning data modules
 │   ├── gnn_datamodule.py
 │   ├── crabnet_datamodule.py
@@ -173,6 +179,7 @@ goldilocks_kpoints/
 ├── models/               # Model implementations
 │   ├── cgcnn.py
 │   ├── alignn.py
+|   ├── kingcrab.py
 │   ├── crabnet.py
 │   ├── ensembles.py
 │   └── modelmodule.py
@@ -180,11 +187,19 @@ goldilocks_kpoints/
 │   ├── atom_features_utils.py
 │   ├── compound_features_utils.py
 │   ├── cgcnn_graph.py
+|   ├── crabnet_utils.py
 │   ├── alignn_graph.py
 │   └── utils.py
 ├── scripts/              # Training and prediction scripts
 │   ├── train.py
 │   └── predict.py
+├── notebooks/
+|   ├── Data-exploration.ipynb
+|   ├── RF-feature-importance.ipynb
+|   ├── Surrogate-models.ipynb
+|   ├── ALIGNN-CQR.ipynb
+|   ├── RF-CQR.ipynb
+|   └── Wall-time.ipynb
 └── README.md
 ```
 
