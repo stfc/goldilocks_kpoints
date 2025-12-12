@@ -21,26 +21,27 @@ The models support both regression and classification tasks, with advanced featu
 
 ### Implemented Models
 
-1. **CGCNN** - Crystal Graph Convolutional Neural Network
-2. **ALIGNN** - Atomistic Line Graph Neural Network
-3. **CrabNet** - Transformer-based model for composition-based predictions ([Nature paper](https://www.nature.com/articles/s41524-021-00545-1))
-4. **Random Forest** - Ensemble method with quantile regression support
-5. **Gradient Boosting Trees** - XGBoost-style gradient boosting
+1. **CGCNN** - Crystal Graph Convolutional Neural Network ([paper](https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.120.145301))
+2. **ALIGNN** - Atomistic Line Graph Neural Network ([paper](https://www.nature.com/articles/s41524-021-00650-1))
+3. **CrabNet** - Transformer-based model for composition-based predictions ([paper](https://www.nature.com/articles/s41524-021-00545-1))
+4. **Random Forest** - Ensemble method with quantile regression support ([scikit-learn](https://scikit-learn.org/), [sklearn-quantile](https://sklearn-quantile.readthedocs.io/))
+5. **Gradient Boosting Trees** - XGBoost-style gradient boosting with quantile regression support ([scikit-learn implementation](https://scikit-learn.org/))
 6. **Histogram Gradient Boosting** - Fast gradient boosting implementation
 
 ### Atomic (Node) Features
 
-- **CGCNN features** - Standard atomic embeddings
-- **Energy cutoffs** - Density cutoffs determined by pseudo-potential type and energy cutoff
-- **SOAP features** - Calculated for structures with all atoms substituted by one atom type
+- **CGCNN features** - Standard atomic embeddings from CGCNN paper
+- **CGCNN features modified with energy and density cutoff** - In addition to CGCNN feature the follwoing features added: 1-hot encoding for energy cutoff, 1-hot encoding for density cutoff, type of pseudopotential. PCA is performed on features to remove dimensions with no infromation content.
+- **mat2vec features** - Mat2vec embeddings were developed by [Tshitoyan et al.](https://doi.org/10.1038/s41586-019-1335-8) via skip-gram variation of Word2vec method trained on 3.3 million scientific abstracts, and originally used in CrabNet model
+- **SOAP features** - Calculated for structures with all atoms substituted by one atom type -- not used as was not effective as atomic features
 
 ### Compound-Level Features
 
-1. **Matminer composition features** - Element property and stoichiometry descriptors
-2. **Matminer structure features** - Global symmetry, density, and structural descriptors
-3. **JarvisCFID features** - JARVIS Crystal Fingerprint features
-4. **SOAP features** - Averaged over all atoms in the structure
-5. **CGCNN embeddings** - Features extracted from pre-trained CGCNN models (transfer learning)
+1. **Matminer composition features** - Element property, stoichiometry, and valenceorbital descriptors
+2. **Matminer structure features** - Global symmetry and  density descriptors
+3. **JarvisCFID features** - JARVIS Crystal Fingerprint features, matminer implementation
+4. **SOAP features** - Averaged over all atoms in the structure, calculated with [DScribe](https://singroup.github.io/dscribe/latest/)
+5. **CGCNN embeddings** - Features extracted from pre-trained CGCNN models. Pre-trained CGCNN model was trained on MP 'is_metal' dataset (Autumn 2025)
 6. **MatSciBert embeddings** - Generated from:
    - QE SCF input files with k-points section removed, or
    - Robocrystallographer structure descriptions
@@ -77,8 +78,14 @@ For GNN models, atomic features are used as input to the graph neural network, a
 
 ```bash
 # Clone the repository
-git clone https://github.com/ddmms/k_points.git
+git clone https://github.com/stfc/goldilocks_kpoints.git
 cd goldilocks_kpoints
+
+# Create python environment
+python -m venv .venv
+source .venv/bin/activate
+
+# Install dependences of pytorch-geometric as described in [here](https://pytorch-geometric.readthedocs.io/en/latest/install/installation.html). It is needed as torch_scatter, torch_sparse should be installed from binary wheels using pip and can't be installed with poetry.
 
 # Install dependencies using Poetry
 poetry install
@@ -87,18 +94,9 @@ poetry install
 poetry shell
 ```
 
-### Key Dependencies
-
-- PyTorch 2.4.0
-- PyTorch Geometric 2.7.0
-- PyTorch Lightning 2.4+
-- pymatgen 2024.11.13
-- matminer 0.9.3+
-- transformers 4.54.1+ (for MatSciBert)
-
 ## Quick Start
 
-### 1. Prepare Your Data
+### 1. Prepare Your Data in the CGCNN format (see their paper for details)
 
 Create a CSV file (`id_prop.csv`) with two columns:
 - Column 0: Sample IDs (corresponding to `{id}.cif` files)
@@ -129,45 +127,13 @@ python scripts/predict.py \
     --output_name output/predictions.csv
 ```
 
-## Configuration
-
-Experiments are defined using YAML configuration files in the `configs/` directory. Each model type has its own configuration template:
-
-### Example Configuration Structure
-
-```yaml
-model:
-  name: cgcnn  # or 'alignn', 'crabnet'
-  classification: false
-  robust_regression: true
-  quantile_regression: false
-
-data:
-  root_dir: ./data
-  id_prop_csv: id_prop.csv
-  batch_size: 64
-  train_ratio: 0.8
-  val_ratio: 0.1
-  test_ratio: 0.1
-
-optim:
-  learning_rate: 0.001
-  weight_decay: 0.0001
-  swa: true
-  swa_lr: 0.0001
-  swa_start: 200
-
-loss:
-  name: RobustL2Loss
-  quantile: 0.9  # for quantile regression
-```
+### 5. To perform Conformalised quantile regression, first train quantile models using quantile loss, or QRF (for ranfom Forest). Then use the notebooks (availibel for RF and ALIGNN, but can be easily modified for other models) to calculate conformal corrections to the intervals.
 
 ## Model Training
 
 Models are typically trained for 300 epochs with:
 - **Early stopping**: Monitors validation loss/metrics
-- **Stochastic Weight Averaging (SWA)**: Optional, can be enabled for improved generalization
-- **MLflow logging**: Automatic experiment tracking
+- **Stochastic Weight Averaging (SWA)**: Optional, can be enabled
 
 ### Training Options
 
@@ -176,16 +142,6 @@ Models are typically trained for 300 epochs with:
 - **Robust Regression**: Estimates aleatoric uncertainty (predicts mean and std)
 - **Quantile Regression**: Predicts specific quantiles or intervals
 
-## Baseline
-
-As a baseline, we use a dummy model that predicts a constant `k-dist` value. This constant is determined from the training dataset to:
-- Minimize the number of compounds for which predicted `k-dist` is larger than the true value (minimize underconverged calculations)
-- Minimize MAE on the training dataset (minimize compute time)
-
-In high-throughput calculations, a fixed low `k-dist` is usually used for all compounds to guarantee convergence. This package suggests using ML to predict `k-dist` values that are:
-- Closer to the optimal values
-- Minimize the number of underconverged calculations
-- Reduce computational cost through optimized k-point sampling
 
 ## Dataset and Convergence Definition
 
@@ -232,32 +188,6 @@ goldilocks_kpoints/
 └── README.md
 ```
 
-## Advanced Features
-
-### Uncertainty Quantification
-
-The package supports multiple approaches for uncertainty estimation:
-
-- **Aleatoric Uncertainty**: Using robust loss functions (RobustL1, RobustL2, StudentT)
-- **Quantile Prediction**: Direct quantile regression
-- **Conformal Prediction**: Coverage-guaranteed prediction intervals
-
-### Transfer Learning
-
-- Extract features from pre-trained CGCNN models
-- Use MatSciBert embeddings from text descriptions
-- Combine multiple feature types for improved performance
-
-### Custom Features
-
-Easily add custom features by:
-1. Implementing feature extraction functions in `utils/compound_features_utils.py`
-2. Adding feature configuration to your YAML file
-3. The datamodule will automatically compute and concatenate features
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Citation
 
@@ -265,47 +195,15 @@ If you use this code in your research, please cite:
 
 ```bibtex
 @software{goldilocks_kpoints,
-  title = {Goldilocks K-Points: ML Models for Predicting K-Point Density in DFT Calculations},
-  author = {Patyukova, Elena},
-  year = {2024},
-  url = {https://github.com/ddmms/k_points}
+  title = {Automatic generation of input files with optimised k-point meshes for Quantum Espresso self-consistent field single point total energy calculations},
+  author = {Elena Patyukova, Junwen Yin, Susmita Basak, Jaehoon Cha, Alin Elenaa, and Gilberto Teobaldi},
+  year = {2025},
+  url = {to be published}
 }
 ```
-
-## References
-
-1. **CGCNN Limitations**: Sheng Gong et al., "Examining graph neural networks for crystal structures: Limitations and opportunities for capturing periodicity." *Sci. Adv.* 9, eadi3245 (2023). [DOI:10.1126/sciadv.adi3245](https://doi.org/10.1126/sciadv.adi3245)
-
-2. **MatSciBert**: Gupta, T., Zaki, M., Krishnan, N.M.A. et al. "MatSciBERT: A materials domain language model for text mining and information extraction." *npj Comput Mater* 8, 102 (2022). [DOI:10.1038/s41524-022-00784-w](https://doi.org/10.1038/s41524-022-00784-w)
-
-3. **Robocrystallographer**: Ganose, A., & Jain, A. "Robocrystallographer: Automated crystal structure text descriptions and analysis." *MRS Communications* 9(3), 874-881 (2019). [DOI:10.1557/mrc.2019.94](https://doi.org/10.1557/mrc.2019.94)
-
-4. **CrystalNN**: Hillary Pan, et al. "Benchmarking Coordination Number Prediction Algorithms on Inorganic Crystal Structures." *Inorganic Chemistry* 60(3), 1590-1603 (2021). [DOI:10.1021/acs.inorgchem.0c02996](https://doi.org/10.1021/acs.inorgchem.0c02996)
-
-5. **CrabNet**: Wang, A.Y.T., et al. "Machine learning for materials discovery." *Nature Computational Materials* (2021). [DOI:10.1038/s41524-021-00545-1](https://www.nature.com/articles/s41524-021-00545-1)
 
 ## License
 
 © 2025 Science and Technology Facilities Council (STFC)
 
 This project is licensed under the Creative Commons Attribution 4.0 International License (CC BY 4.0).
-
-To view a copy of this license, visit http://creativecommons.org/licenses/by/4.0/ or see the [LICENSE](LICENSE) file in this repository.
-
-### What this means
-
-You are free to:
-- **Share** — copy and redistribute the material in any medium or format
-- **Adapt** — remix, transform, and build upon the material for any purpose, even commercially
-
-Under the following terms:
-- **Attribution** — You must give appropriate credit, provide a link to the license, and indicate if changes were made. You may do so in any reasonable manner, but not in any way that suggests the licensor endorses you or your use.
-
-## Contact
-
-For questions or issues, please contact:
-- Elena Patyukova: elena.patyukova@stfc.ac.uk
-
----
-
-**Note**: This package is under active development. Please report any issues or suggestions for improvement.
