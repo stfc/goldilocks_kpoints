@@ -184,7 +184,6 @@ goldilocks_kpoints/
 ├── models/               # Model implementations
 │   ├── cgcnn.py
 │   ├── alignn.py
-|   ├── kingcrab.py
 │   ├── crabnet.py
 │   ├── ensembles.py
 │   └── modelmodule.py
