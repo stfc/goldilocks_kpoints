@@ -264,7 +264,7 @@ def cgcnn_features(checkpoint_path: str, data_path: str, lmdb_exist: bool=False)
                          graph_params = None,
                          random_seed = checkpoint['hyper_parameters']['data']['random_seed'],
                          compound_features = {'additional_compound_features': None},
-                         atomic_features = {'atom_feature_strategy': {'atom_feature_file': '/Users/elena.patyukova/Documents/github/clean-kpoints/goldilocks_kpoints/embeddings/atom_init_original.json',
+                         atomic_features = {'atom_feature_strategy': {'atom_feature_file': '/Users/elenapatyukova/Documents/github/goldilocks_kpoints/embeddings/atom_init_original.json',
                                                                          'soap_atomic': False}})
 
     model=CGCNN_PyG(**checkpoint['hyper_parameters']['model'])

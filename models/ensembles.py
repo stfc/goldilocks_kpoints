@@ -96,7 +96,9 @@ class Ensembles:
         structures=[]
         compositions=[]
         formulas=[]
+        print(len(self.data.index))
         for ind in self.data.index:
+            # print(ind, os.path.join(config['data']['root_dir'],str(ind)+'.cif'))
             struct = Structure.from_file(os.path.join(config['data']['root_dir'],str(ind)+'.cif'))
             comp = Composition(struct.formula)
             structures.append(struct)
