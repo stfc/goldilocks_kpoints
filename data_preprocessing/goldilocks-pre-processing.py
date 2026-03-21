@@ -5,17 +5,16 @@ import json
 import shutil
 import argparse
 import sys
+import ast
 from typing import Dict, List, Union
 from pymatgen.core.structure import Structure
 from pymatgen.core.composition import Composition
 from pymatgen.analysis.structure_matcher import StructureMatcher
 
-parser = argparse.ArgumentParser(description="Creating data for CGCNN model from Junwen's data")
-parser.add_argument('--data_file', default='./aggregated_v4_analysis.csv', type=str, help='summery data file')
-parser.add_argument('--data_folder', default='',type=str,help="original folder with Junwen's data")
-parser.add_argument('--target_folder', default='data/cgcnn_junwen_may',type='str',help='target data folder')
-parser.add_argument('--property', default='k_number', choices=['k_number', 'convergence', 'convergence_class'], \
-                    type=str, help='property we want to predict: k_number, convergence, or convergence_class')
+parser = argparse.ArgumentParser(description="Creating data for CGCNN model from Goldilocks's data")
+parser.add_argument('--data_file', default='data/upload_version/summary.csv', type=str, help='summary data file')
+parser.add_argument('--data_folder', default='data/upload_version/structure_calc_details/',type=str,help="original folder with Goldilocks's data")
+parser.add_argument('--target_folder', default='data/goldilocks', type=str, help='target data folder')
 args = parser.parse_args(sys.argv[1:])
 
 def normalize_formulas(df: pd.DataFrame, formula_column: str = 'formula') -> pd.DataFrame:
@@ -44,20 +43,19 @@ def find_structural_duplicates(df: pd.DataFrame, matcher: StructureMatcher, form
     """
     duplicate_pairs = {}
 
-    for formula in df[formula_column].unique():
+    for formula in df['Formula'].unique():
         subset = df[df[formula_column] == formula]
         ids = subset['source_db_id'].values
 
         pairs = []
         for i, idx in enumerate(ids):
-            structure1 = Structure.from_file(os.path.join(path_data+idx,idx+'.cif'))
+            structure1 = df.loc[df['source_db_id']==idx]['structure'].values[0]
             for j in range(i + 1, len(ids)):
-                structure2 = Structure.from_file(os.path.join(path_data+ids[j],ids[j]+'.cif'))
+                structure2 = df.loc[df['source_db_id']==ids[j]]['structure'].values[0]
                 if matcher.fit(structure1, structure2):
-                    pairs.append((ids[i], ids[j]))
-        
+                    pairs.append((ids[i], ids[j]))    
         if pairs:
-            duplicate_pairs[formula] = pairs
+            duplicate_pairs[formula] = pairs   
 
     # Reduce pairs to unique JIDs per formula
     duplicates_reduced = {
@@ -82,9 +80,9 @@ def remove_structural_duplicates(df: pd.DataFrame, duplicates: Union[Dict, None]
     selected_ids=[]
     for formula,ids in duplicates.items():
         subset=duplicates_subset.loc[duplicates_subset['source_db_id'].isin(ids)]
-        subset=subset.loc[~subset['k_number'].isna()]
+        subset=subset.loc[~subset['k_dist'].isna()]
         if(len(subset)>0):
-            row = subset[subset['k_number'] == subset['k_number'].max()]
+            row = subset[subset['k_dist'] == subset['k_dist'].min()]
             selected_ids.append(row['source_db_id'].values[0])
 
     duplicates_subset=duplicates_subset.loc[duplicates_subset['source_db_id'].isin(selected_ids)]
@@ -94,69 +92,45 @@ def remove_structural_duplicates(df: pd.DataFrame, duplicates: Union[Dict, None]
     return df_new
 
 if __name__ == "__main__":
+    if not os.path.exists(args.target_folder):
+        os.makedirs(args.target_folder)
     df=pd.read_csv(args.data_file)
     df=normalize_formulas(df,formula_column='Formula')
-
-    not_converged=[]
-
+    
+    structures=[]
+    k_distances=[]
+    densities=[]
     for ind in range(len(df)):
         da=df.iloc[ind]
-        if(pd.isna(da['medium_k_number']) and pd.isna(da['well_k_number']) and pd.isna(da['ultra_k_number'])):
-            not_converged.append(ind)
-
-    only_medium=[]
-
-    for ind in range(len(df)):
-        da=df.iloc[ind]
-        if(not(pd.isna(da['medium_k_number'])) and pd.isna(da['well_k_number']) and pd.isna(da['ultra_k_number'])):
-            only_medium.append(ind)
-
-    only_well=[]
-
-    for ind in range(len(df)):
-        da=df.iloc[ind]
-        if(not(pd.isna(da['well_k_number'])) and pd.isna(da['ultra_k_number'])):
-            only_well.append(ind)
-
-    only_ultra=[]
-
-    for ind in range(len(df)):
-        da=df.iloc[ind]
-        if(not(pd.isna(da['ultra_k_number']))):
-            only_ultra.append(ind)
-
-    convergence_class=[]
-    k_number=[]
-
-    for ind in range(len(df)):
-        if(ind in not_converged):
-            convergence_class.append(0)
-            k_number.append(np.nan)
-        elif(ind in only_medium):
-            convergence_class.append(1)
-            k_number.append(df.iloc[ind]['medium_k_number'])
-        elif(ind in only_well):
-            convergence_class.append(2)
-            k_number.append(df.iloc[ind]['well_k_number'])
-        elif(ind in only_ultra):
-            convergence_class.append(3)
-            k_number.append(df.iloc[ind]['ultra_k_number'])
-    df['convergence_class']=convergence_class
-    df['k_number']=k_number
+        mesh=ast.literal_eval(da['ultra k-mesh'])
+        name=da['source_db_id']
+        structure = Structure.from_file(os.path.join(args.data_folder+name,name+'.cif'))
+        density=structure.density
+        k_dist=max(b / n for b, n in zip(structure.lattice.reciprocal_lattice.abc, mesh))
+        k_distances.append(k_dist)
+        structures.append(structure)
+        densities.append(density)
+    df['structure']=structures
+    df['k_dist']=k_distances
+    df['density']=densities
+    df=df.loc[df['density']>0.5]
+    df.reset_index(inplace=True, drop=True)
+    df.to_csv(os.path.join(args.target_folder,'goldilocks_kdist.csv'),index=False)
+    
 
     matcher = StructureMatcher(attempt_supercell=False)
     duplicate_structures = find_structural_duplicates(df, matcher, formula_column = 'Formula')
-    with open('./junwen_may_structural_duplicates.json','w') as file:
+    with open(os.path.join(args.target_folder,'goldilocks_structural_duplicates.json'),'w') as file:
         json.dump(duplicate_structures, file, indent = 4)
 
-    da_new = remove_structural_duplicates(df=df, duplicates_file = './junwen_may_structural_duplicates.json')
-    da_new.to_csv('./junwen_may_no_structural_duplicates.csv')
+    da_new = remove_structural_duplicates(df=df, duplicates_file = os.path.join(args.target_folder,'goldilocks_structural_duplicates.json'))
+    da_new.to_csv(os.path.join(args.target_folder,'goldilocks_no_structural_duplicates.csv'))
     
-    prop=da_new[['k_number']]
+    prop=da_new[['k_dist']]
     prop.to_csv(os.path.join(args.target_folder,'id_prop.csv'),header=None)
 
     for ind in da_new.index.values:
-        name=da_new.iloc[ind]['source_db_id']
-        structure = Structure.from_file(os.path.join(args.data_folder+name,name+'.cif'))
+        entry=da_new.iloc[ind]
+        structure = entry['structure']
         structure.to_file(os.path.join(args.target_folder,str(ind)+'.cif'))
                     

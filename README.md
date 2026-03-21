@@ -69,29 +69,30 @@ For GNN models, atomic features are used as input to the graph neural network, a
 
 ## Installation
 
-### Prerequisites
+- conda/minconda/micromamba installed
 
-- Python 3.11 or 3.12
-- Poetry (for dependency management)
+### Create environment with python3.11 or 3.12
+```
+conda create -n goldilocks_kpoints python=3.11
+conda activate goldilocks_kpoints
+```
 
-### Setup
+### Install poetry
+```
+conda install poetry
+```
 
-```bash
-# Clone the repository
-git clone https://github.com/stfc/goldilocks_kpoints.git
-cd goldilocks_kpoints
+### Install PyTorch Geometric and its dependencies 
 
-# Create python environment
-python -m venv .venv
-source .venv/bin/activate
+(torch_scatter, torch_sparse, etc. must be installed from binary wheels using pip and cannot be installed with Poetry). 
 
-# Install dependences of pytorch-geometric as described in [here](https://pytorch-geometric.readthedocs.io/en/latest/install/installation.html). It is needed as torch_scatter, torch_sparse should be installed from binary wheels using pip and can't be installed with poetry.
-
-# Install dependencies using Poetry
-poetry install
-
-# Activate the virtual environment
-poetry shell
+```
+pip install pyg_lib torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.4.0+cpu.html 
+pip install torch_geometric
+```
+### Install everything else with poetry
+```
+poetry install --no-root
 ```
 
 ## Quick Start
@@ -102,9 +103,17 @@ Create a CSV file (`id_prop.csv`) with two columns:
 - Column 0: Sample IDs (corresponding to `{id}.cif` files)
 - Column 1: Target values (k-dist values)
 
-Place your CIF files in the same directory as the CSV file.
+Place your CIF files in the same directory as the CSV file. By defalt the data is expected to be stored in 'data/your_project_name/' folder (included in .gitignore)
 
-### 2. Configure Your Experiment
+### 2. Using the Goldilocks data  https://data-collections.psdi.ac.uk/records/75959-bwa52 :
+
+If you download the Goldilocks dataset, and unpack it into 'data/' you will see a 'data/upload_version' folder with 'summary.csv' and 'structure_calc_details' folder inside. WIth this setup you can use 'data_preprocessing/goldilocks-pre-processing.py' to turn the data into 'data/goldilocks/' folder with CGCNN-format data ready for model training.
+
+```
+python data_preprocessing/goldilocks-pre-processing.py --data_folder 'data/upload_version/structure_calc_details/' --data_file 'data/upload_version/summary.csv' --target_folder 'data/goldilocks'
+```
+
+### 3. Configure Your Experiment
 
 Create or modify a configuration file in `configs/` directory. Example configurations:
 - `configs/cgcnn.yaml` - For CGCNN model
@@ -193,7 +202,9 @@ goldilocks_kpoints/
 │   ├── cgcnn_graph.py
 |   ├── crabnet_utils.py
 │   ├── alignn_graph.py
-│   └── utils.py
+│   ├── utils.py
+|   └── trained_is_metal_cgcnn
+|        └──is_metal.ckpt
 ├── scripts/              # Training and prediction scripts
 │   ├── train.py
 │   └── predict.py

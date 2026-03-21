@@ -1,6 +1,12 @@
-# Ensemble models Configuration
+train:
+  run_name: ensembles0
+  experiment_name: RF_basic
+  version: '1.0'
+  output_dir: output/ensembles/
+  checkpoint_dir: trained_models/ensembles/
+
 data:
-    root_dir: data/cgcnn_junwen_oct_6_kdist
+    root_dir: data/goldilocks
     id_prop_csv: id_prop.csv
     qe_input_files: null #qe_input_files
     random_seed: 11
@@ -10,7 +16,7 @@ data:
     save_features: true
 
 model:
-    model_name: RF # RF, GB, HGB
+    name: RF # RF, GB, HGB
     random_seed: 42
     n_estimators: 100
     learning_rate: 0.2

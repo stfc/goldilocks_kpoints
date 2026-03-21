@@ -46,6 +46,7 @@ torch-sparse = {url = "https://data.pyg.org/whl/torch-2.4.0+cpu/torch_sparse-0.6
 torch-spline-conv = {url = "https://data.pyg.org/whl/torch-2.4.0+cpu/torch_spline_conv-1.2.2-cp311-cp311-macosx_10_9_universal2.whl"}
 torch-geometric = "^2.7.0"
 mapie = "^1.2.0"
+sklearn-quantile = "^0.1.1"
 
 [tool.poetry.urls]
 Repository = "https://github.com/ddmms/k_points"

@@ -5,6 +5,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint, StochasticWeightAveragi
 from pytorch_lightning.loggers import MLFlowLogger
 import mlflow.pytorch
 import argparse
+import os
 from pytorch_lightning.callbacks import Callback as PLCallback
 
 import sys
@@ -18,18 +19,19 @@ from datamodules.gnn_datamodule import GNNDataModule
 from datamodules.crabnet_datamodule import CrabNetDataModule
 from utils.utils import load_yaml_config
 from models.modelmodule import GNNModel, CrabNetLightning
+from models.ensembles import Ensembles
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Training script")
     parser.add_argument("--config_file",
-                        default="alignn.yaml",
+                        default="comfigs/ensembles.yaml",
                         help="Provide the experiment configuration file")
 
 
     args = parser.parse_args(sys.argv[1:])
 
-    path_config = Path(__file__).resolve().parent.parent / "configs" / args.config_file
+    path_config = Path(__file__).resolve().parent.parent / args.config_file
     config = load_yaml_config(path_config)
     
     path_mlf_logger = Path(__file__).resolve().parent.parent / 'mlruns'
@@ -40,6 +42,8 @@ if __name__ == "__main__":
                               log_model=False)
     
     if(config['model']['name']=='cgcnn' or config['model']['name']=='alignn'):
+        print('Model name: ', config['model']['name'])
+        print('-----------------------------------------')
         data = GNNDataModule(**config['data'])
         config['data']['lmdb_exist']=True
         print('-----------------------------------------')
@@ -49,83 +53,98 @@ if __name__ == "__main__":
         print('-----------------------------------------')
         model = GNNModel(**config)
     elif(config['model']['name']=='crabnet'):
+        print('Model name: ', config['model']['name'])
+        print('-----------------------------------------')
         data = CrabNetDataModule(**config['data'])
         print('-----------------------------------------')
         print(f'atomic features: {config["data"]["atomic_features"]}')
         print('-----------------------------------------')
         model = CrabNetLightning(**config)
-    
-    
-    if config['model']['classification']:
-        checkpoint_callback = ModelCheckpoint(monitor='val_mcc', \
-                                                mode="max", \
-                                                save_top_k=config['train']['number_of_checkpoints'], \
-                                                dirpath=f"trained_models/{config['model']['name']}/", \
-                                                filename='{epoch:02d}_{val_mcc:.2f}')
-    else:
-        checkpoint_callback = ModelCheckpoint(monitor='val_loss', \
-                                                mode="min", \
-                                                save_top_k=config['train']['number_of_checkpoints'], \
-                                                dirpath=f"trained_models/{config['model']['name']}/", \
-                                                filename='{epoch:02d}_{val_mae:.3f}')
+    elif(config['model']['name']=='RF' or config['model']['name']=='GB' or config['model']['name']=='HGB'):
+        print('Model name: ', config['model']['name'])
+        print('-----------------------------------------')
+        model = Ensembles(**config)
+        model.prep_data()
+        os.makedirs(config['train']['output_dir'],exist_ok=True)
+        os.makedirs(config['train']['checkpoint_dir'],exist_ok=True)
+        predictions = model.train_predict_model(save_model_path=config['train']['checkpoint_dir'], 
+                                            save_model_name=config['model']['name'])
+        predictions.to_csv(os.path.join(config['train']['output_dir'],'predictions.csv'))
+        
 
-                        
+    if(config['model']['name']=='cgcnn' or config['model']['name']=='alignn' or config['model']['name']=='crabnet'):
+        if config['model']['classification']:
+            checkpoint_callback = ModelCheckpoint(monitor='val_mcc', \
+                                                    mode="max", \
+                                                    save_top_k=config['train']['number_of_checkpoints'], \
+                                                    dirpath=f"trained_models/{config['model']['name']}/", \
+                                                    filename='{epoch:02d}_{val_mcc:.2f}')
+        else:
+            checkpoint_callback = ModelCheckpoint(monitor='val_loss', \
+                                                    mode="min", \
+                                                    save_top_k=config['train']['number_of_checkpoints'], \
+                                                    dirpath=f"trained_models/{config['model']['name']}/", \
+                                                    filename='{epoch:02d}_{val_mae:.3f}')
+
+                            
+                
+        if config['optim']['swa']:
+            swa = StochasticWeightAveraging(swa_lrs=config['optim']['swa_lr'], annealing_epochs=5, annealing_strategy='linear', swa_epoch_start=config['optim']['swa_start'])
+            early_stopping_cb = EarlyStopping(
+                                                monitor='val_mae',
+                                                patience=config['train']['patience'],
+                                            )
+
+            callbacks=[early_stopping_cb,checkpoint_callback, swa]
             
-    if config['optim']['swa']:
-        swa = StochasticWeightAveraging(swa_lrs=config['optim']['swa_lr'], annealing_epochs=5, annealing_strategy='linear', swa_epoch_start=config['optim']['swa_start'])
-        early_stopping_cb = EarlyStopping(
-                                            monitor='val_mae',
-                                            patience=config['train']['patience'],
-                                        )
+            assert all(isinstance(cb, PLCallback) for cb in callbacks), [type(cb) for cb in callbacks]
+            
+            trainer = Trainer(
+                                max_epochs=config['train']['epochs'],
+                                accelerator=config['train']['accelerator'],
+                                devices=config['train']['devices'],
+                                logger=mlf_logger,
+                                callbacks=callbacks
+                            )
+        else:
+            trainer = Trainer(max_epochs=config['train']['epochs'], \
+                                    accelerator=config['train']['accelerator'],  \
+                                    devices=config['train']['devices'], \
+                                    logger=mlf_logger, \
+                                    callbacks=[EarlyStopping(monitor='val_loss', patience=config['train']['patience']), 
+                                            checkpoint_callback])
 
-        callbacks=[early_stopping_cb,checkpoint_callback, swa]
+
+
+        trainer.fit(model, datamodule=data)
+        if config['optim']['swa']:
+            swa_path = Path(__file__).resolve().parent.parent / 'trained_models'/ config['model']['name']/'swa_model.ckpt'
+            trainer.save_checkpoint(swa_path)
         
-        assert all(isinstance(cb, PLCallback) for cb in callbacks), [type(cb) for cb in callbacks]
-        
-        trainer = Trainer(
-                            max_epochs=config['train']['epochs'],
-                            accelerator=config['train']['accelerator'],
-                            devices=config['train']['devices'],
-                            logger=mlf_logger,
-                            callbacks=callbacks
-                        )
-    else:
-        trainer = Trainer(max_epochs=config['train']['epochs'], \
-                                accelerator=config['train']['accelerator'],  \
-                                devices=config['train']['devices'], \
-                                logger=mlf_logger, \
-                                callbacks=[EarlyStopping(monitor='val_loss', patience=config['train']['patience']), 
-                                        checkpoint_callback])
 
-
-
-    trainer.fit(model, datamodule=data)
-    if config['optim']['swa']:
-        swa_path = Path(__file__).resolve().parent.parent / 'trained_models'/ config['model']['name']/'swa_model.ckpt'
-        trainer.save_checkpoint(swa_path)
-    
-
-    if(config['model']['name'] == 'cgcnn'):
-        with mlflow.start_run(run_id=mlf_logger.run_id):
-            if checkpoint_callback.best_model_path:
-                mlflow.pytorch.log_model(
-                    pytorch_model=trainer.model,
-                    artifact_path="best_cgcnn_model", 
-                    registered_model_name="cgcnn_model"
-                )
-    elif(config['model']['name'] == 'alignn'):
-        with mlflow.start_run(run_id=mlf_logger.run_id):
-            if checkpoint_callback.best_model_path:
-                mlflow.pytorch.log_model(
-                    pytorch_model=trainer.model,
-                    artifact_path="best_alignn_model", 
-                    registered_model_name="alignn_model"
-                )
-    elif(config['model']['name'] == 'crabnet'):
-        with mlflow.start_run(run_id=mlf_logger.run_id):
-            if checkpoint_callback.best_model_path:
-                mlflow.pytorch.log_model(
-                    pytorch_model=trainer.model,
-                    artifact_path="best_crabnet_model", 
-                    registered_model_name="crabnet_model"
-                )
+        if(config['model']['name'] == 'cgcnn'):
+            with mlflow.start_run(run_id=mlf_logger.run_id):
+                if checkpoint_callback.best_model_path:
+                    mlflow.pytorch.log_model(
+                        pytorch_model=trainer.model,
+                        artifact_path="best_cgcnn_model", 
+                        registered_model_name="cgcnn_model"
+                    )
+        elif(config['model']['name'] == 'alignn'):
+            with mlflow.start_run(run_id=mlf_logger.run_id):
+                if checkpoint_callback.best_model_path:
+                    mlflow.pytorch.log_model(
+                        pytorch_model=trainer.model,
+                        artifact_path="best_alignn_model", 
+                        registered_model_name="alignn_model"
+                    )
+        elif(config['model']['name'] == 'crabnet'):
+            with mlflow.start_run(run_id=mlf_logger.run_id):
+                if checkpoint_callback.best_model_path:
+                    mlflow.pytorch.log_model(
+                        pytorch_model=trainer.model,
+                        artifact_path="best_crabnet_model", 
+                        registered_model_name="crabnet_model"
+                    )
+    elif(config['model']['name']=='RF' or config['model']['name']=='GB' or config['model']['name']=='HGB'):
+        pass
