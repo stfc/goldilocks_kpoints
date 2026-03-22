@@ -283,9 +283,6 @@ class GNNDataModule(L.LightningDataModule):
         Returns:
             DataLoader for prediction data.
         """
-        if self.calibration:
-            pass
-        else:
-            return DataLoader(self.test_dataset, batch_size=self.batch_size,
+        return DataLoader(self.test_dataset, batch_size=self.batch_size,
                             num_workers=0, collate_fn=self.test_collate, 
                             pin_memory=self.pin_memory, shuffle=shuffle)

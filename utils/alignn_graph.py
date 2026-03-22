@@ -1,9 +1,47 @@
 import numpy as np
 from typing import List
+
 from pymatgen.core.structure import Structure
 import torch
 from torch_geometric.data import Data
 import warnings
+
+
+def prepare_structure_for_alignn(structure: Structure) -> Structure:
+    """Expand single-site cells with a 2×2×2 diagonal supercell for ALIGNN.
+
+    Pymatgen's periodic neighbor list on a **primitive 1-atom** cell often reports bonds as
+    ``(0, 0)`` (same site index, different image). The line-graph rule ``b == c`` and ``a != d``
+    then never fires, so there are **no angle edges** even though the bond graph exists.
+
+    A ``2×2×2`` diagonal supercell reproduces the same bulk repeat but assigns **distinct site
+    indices**, restoring valid bond pairs and line-graph connectivity.
+
+    Multi-site structures are returned as a **copy** unchanged.
+
+    Args:
+        structure: Input crystal structure.
+
+    Returns:
+        Structure to use for featurization and ``build_alignn_graph_with_angles_from_structure``.
+    """
+    if len(structure) != 1:
+        return structure.copy()
+
+    formula = getattr(structure, "composition", None)
+    formula_str = formula.reduced_formula if formula is not None else structure.formula
+
+    expanded = structure.copy()
+    expanded.make_supercell([[2, 0, 0], [0, 2, 0], [0, 0, 2]])
+
+    msg = (
+        f"ALIGNN: single-site cell ({formula_str}) expanded to a 2×2×2 diagonal supercell "
+        f"so the line graph can include angle edges ({len(expanded)} sites in cell)."
+    )
+    warnings.warn(msg, UserWarning, stacklevel=2)
+    print(f"[alignn_graph] {msg}", flush=True)
+
+    return expanded
 
 
 def build_alignn_graph_with_angles_from_structure(structure: Structure, 
@@ -53,6 +91,9 @@ def build_alignn_graph_with_angles_from_structure(structure: Structure,
         )
 
     x = torch.tensor(atom_features, dtype=torch.float32)
+    # Avoid [num_atoms, 1, feat_dim] from column-shaped per-atom vectors; breaks pooling.
+    if x.dim() == 3 and x.size(1) == 1:
+        x = x.squeeze(1)
     edge_index = torch.tensor(edge_index, dtype=torch.long).t().contiguous()
     edge_attr = torch.tensor(edge_attr, dtype=torch.float32)
     edge_vecs = torch.tensor(edge_vecs, dtype=torch.float32)
@@ -91,7 +132,8 @@ def build_alignn_graph_with_angles_from_structure(structure: Structure,
             f"!!! compound {formula} has empty line graph, which will course problems when training the model!!!"
         )
         line_edge_index = torch.empty((2, 0), dtype=torch.long)
-        angle_features = torch.empty((0, 1), dtype=torch.float32)
+        # Match non-empty branch: 1D tensor of cosines so RBF sees shape [E], not [E, 1].
+        angle_features = torch.empty(0, dtype=torch.float32)
         reverse_bond_ids = torch.empty((0,), dtype=torch.long)
 
     lg = Data(x=edge_attr, edge_index=line_edge_index, edge_attr=angle_features)

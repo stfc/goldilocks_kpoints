@@ -25,7 +25,7 @@ from models.ensembles import Ensembles
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Training script")
     parser.add_argument("--config_file",
-                        default="comfigs/ensembles.yaml",
+                        default="configs/ensembles.yaml",
                         help="Provide the experiment configuration file")
 
 
@@ -66,7 +66,7 @@ if __name__ == "__main__":
         model = Ensembles(**config)
         model.prep_data()
         os.makedirs(config['train']['output_dir'],exist_ok=True)
-        os.makedirs(config['train']['checkpoint_dir'],exist_ok=True)
+        os.smakedirs(config['train']['checkpoint_dir'],exist_ok=True)
         predictions = model.train_predict_model(save_model_path=config['train']['checkpoint_dir'], 
                                             save_model_name=config['model']['name'])
         predictions.to_csv(os.path.join(config['train']['output_dir'],'predictions.csv'))

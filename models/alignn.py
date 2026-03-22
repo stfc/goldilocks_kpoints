@@ -266,8 +266,16 @@ class ALIGNN_PyG(nn.Module):
         Returns:
             Model predictions.
         """
-        # Embed features
-        x = self.atom_embedding(data_g.x)
+        # Node features must be [num_nodes, feat_dim]. If they are stored as
+        # [num_nodes, 1, feat_dim] (e.g. column vectors from numpy), Linear keeps
+        # an extra dimension and global_mean_pool becomes [batch, 1, hidden],
+        # which breaks torch.cat with 2D compound features.
+        x = data_g.x
+        if x.dim() == 1:
+            x = x.unsqueeze(0)
+        elif x.dim() > 2:
+            x = x.reshape(x.size(0), -1)
+        x = self.atom_embedding(x)
         
         # Apply RBF expansion first, then embedding
         edge_attr = self.edge_rbf(data_g.edge_attr)
@@ -296,10 +304,17 @@ class ALIGNN_PyG(nn.Module):
 
         # Readout and output
         x_pool = self.readout(x, data_g.batch)
+        if x_pool.dim() == 1:
+            x_pool = x_pool.unsqueeze(0)
+        elif x_pool.dim() > 2:
+            x_pool = x_pool.reshape(x_pool.size(0), -1)
         
         if self.additional_compound_features:
             # Reshape additional features to [batch_size, add_feat_len]
-            add_feat = data_g.additional_compound_features.view(-1, self.add_feat_len)
+            add_feat = data_g.additional_compound_features
+            if add_feat.dim() > 2:
+                add_feat = add_feat.reshape(add_feat.size(0), -1)
+            add_feat = add_feat.reshape(-1, self.add_feat_len)
             add_feat = self.add_feat_norm(add_feat)
             add_feat = self.proj_add_feat(add_feat)
             add_feat = self.add_feat_activation(add_feat)

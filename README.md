@@ -127,6 +127,8 @@ Create or modify a configuration file in `configs/` directory. Example configura
 python scripts/train.py --config_file configs/cgcnn.yaml
 ```
 
+**ALIGNN LMDB:** When building the ALIGNN LMDB, **single-atom primitive cells** (e.g. Cu) are automatically expanded with a **`2×2×2` diagonal supercell** so periodic bonds get distinct site indices and the **line graph** is non-empty. You get a **`UserWarning`** and a **`[alignn_graph]`** printed line (formula and site count). **Regenerate** your ALIGNN LMDB after pulling this change (`lmdb_exist: false` in the config, or delete existing LMDB files) so graphs include the supercell.
+
 ### 4. Make Predictions
 
 ```bash

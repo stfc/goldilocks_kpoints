@@ -10,7 +10,7 @@ train:
 
 data:
   # general data specs
-  root_dir: data/test #data/cgcnn_junwen_oct_6_kdist    # cgcnn_data_mp_metal_nonmetal    
+  root_dir: data/goldilocks    # cgcnn_data_mp_metal_nonmetal    
   model_name: alignn
   id_prop_csv: id_prop.csv
   qe_input_files: null #qe_input_files

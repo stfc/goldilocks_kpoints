@@ -372,31 +372,33 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Prediction script")
 
     parser.add_argument("--config_file",
-                        default="ensembles.yaml",
+                        default="configs/ensembles.yaml",
                         help="Provide the experiment configuration file")
     parser.add_argument("--checkpoint_path",
                         default="trained_models/cgcnn/basic_l1robust_6_oct_paper/",
                         help="Provide the path to model checkpoint")
     parser.add_argument("--output_name",
-                        default="output/GB/errors.csv",
+                        default="output/cgcnn/predictions.csv",
                         help="Provide the path to save predictions")
     parser.add_argument("--ensemble_model_save_name",
-                        default="GB_CSLM.pkl",
+                        default="RF.pkl",
                         help="Provide the path to save predictions")
     parser.add_argument("--ensemble_model_save_path",
-                        default="trained_models/GB/",
+                        default="trained_models/ensembles/",
                         help="Provide the path to save predictions")
 
     args = parser.parse_args(sys.argv[1:])
 
-    path_config = Path(__file__).resolve().parent.parent / 'configs' / args.config_file
+    path_config = Path(__file__).resolve().parent.parent / args.config_file
     config = load_yaml_config(path_config)
+    path_output = Path(__file__).resolve().parent.parent / args.output_name
+    os.makedirs(path_output.parent,exist_ok=True)
     
-    if(args.config_file == 'ensembles.yaml'):
+    if(args.config_file == 'configs/ensembles.yaml'):
         ensembles(save_model_path=args.ensemble_model_save_path, 
                   save_model_name=args.ensemble_model_save_name,
                   **config)
-    elif(args.config_file == 'crabnet.yaml'):
+    elif(args.config_file == 'configs/crabnet.yaml'):
         crabnet(**config)
     else:
         gnn_neural_networks(**config)
