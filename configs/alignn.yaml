@@ -10,7 +10,7 @@ train:
 
 data:
   # general data specs
-  root_dir: data/test #data/cgcnn_junwen_oct_6_kdist    # cgcnn_data_mp_metal_nonmetal    
+  root_dir: data/goldilocks    # cgcnn_data_mp_metal_nonmetal    
   model_name: alignn
   id_prop_csv: id_prop.csv
   qe_input_files: null #qe_input_files
@@ -55,7 +55,7 @@ data:
       sigma: 1.0
     lattice_features: true
     cgcnn_features: true
-    checkpoint_path: trained_models/cgcnn/is_metal_nh3/is_metal.ckpt
+    checkpoint_path: utils/trained_is_metal_cgcnn/is_metal.ckpt
     matscibert_features: false
     feat_lmdb_exist: false
     feature_file: null

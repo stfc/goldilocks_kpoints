@@ -27,7 +27,7 @@ class Ensembles:
         
         Args:
             **config: Configuration dictionary containing:
-                - model: Model configuration (model_name, classification, quantile_regression, etc.)
+                - model: Model configuration (name, classification, quantile_regression, etc.)
                 - data: Data configuration (root_dir, id_prop_csv, train_ratio, etc.)
                 - features: Feature configuration (feature_file, composition_features, etc.)
         """
@@ -35,19 +35,19 @@ class Ensembles:
         self.classification = config['model']['classification']
         self.quantile_regression = config['model']['quantile_regression']
         self.quantile = config['model']['quantile']
-        self.model_name = config['model']['model_name']
+        self.name = config['model']['name']
         self.n_estimators = config['model']['n_estimators']
         self.learning_rate = config['model']['learning_rate']
         self.random_seed = config['data']['random_seed']
         self.qe_input_path = config['data']['qe_input_files']  
-        if(self.model_name == 'RF' and self.quantile_regression == False):
+        if(self.name == 'RF' and self.quantile_regression == False):
             if self.classification:
                 self.model = RandomForestClassifier(n_estimators=self.n_estimators,
                                                     random_state =self.random_seed)
             else:
                 self.model = RandomForestRegressor(n_estimators=self.n_estimators,
                                                    random_state =self.random_seed)
-        elif(self.model_name == 'RF' and self.quantile_regression == True):
+        elif(self.name == 'RF' and self.quantile_regression == True):
             if self.classification:
                 self.model = RandomForestClassifier(n_estimators=self.n_estimators,
                                                     random_state =self.random_seed)
@@ -55,14 +55,14 @@ class Ensembles:
                 self.model = RandomForestQuantileRegressor(n_estimators=self.n_estimators, 
                                                            q=[(1-self.quantile)*0.5,0.5,(1+self.quantile)*0.5],
                                                            random_state =self.random_seed)                                 
-        elif(self.model_name == 'GB'):
+        elif(self.name == 'GB'):
             if self.classification:
                 self.model = GradientBoostingClassifier(learning_rate=self.learning_rate,
                                                         random_state =self.random_seed)
             else:
                 self.model = GradientBoostingRegressor(learning_rate=self.learning_rate,
                                                        random_state =self.random_seed)                                     
-        elif(self.model_name == 'HGB'):
+        elif(self.name == 'HGB'):
             if self.classification:
                 self.model = HistGradientBoostingClassifier(learning_rate=self.learning_rate,
                                                             random_state =self.random_seed)
@@ -96,7 +96,9 @@ class Ensembles:
         structures=[]
         compositions=[]
         formulas=[]
+        print(len(self.data.index))
         for ind in self.data.index:
+            # print(ind, os.path.join(config['data']['root_dir'],str(ind)+'.cif'))
             struct = Structure.from_file(os.path.join(config['data']['root_dir'],str(ind)+'.cif'))
             comp = Composition(struct.formula)
             structures.append(struct)
@@ -185,7 +187,7 @@ class Ensembles:
         else:
             if not self.quantile_regression:
                 self.model.fit(Xtrain,ytrain)
-                if(self.model_name == 'RF'):
+                if(self.name == 'RF'):
                     all_preds = np.stack([tree.predict(Xtest) for tree in self.model.estimators_], axis=0)
                     ypred = np.mean(all_preds, axis=0)
                     ypred_std = np.std(all_preds, axis=0)
@@ -203,7 +205,7 @@ class Ensembles:
                                                     "pred": ypred
                                                 })
             elif self.quantile_regression:
-                if(self.model_name == 'RF'):
+                if(self.name == 'RF'):
                     self.model.fit(Xtrain,ytrain)
                     all_preds = np.stack([tree.predict(Xtest) for tree in self.model.estimators_], axis=1)  # shape: [n_samples, n_trees]
                     ypred = np.percentile(all_preds, 100*self.quantile, axis=1)
@@ -212,7 +214,7 @@ class Ensembles:
                                                     "truth": ytest,
                                                     "pred": ypred
                                                 })
-                elif(self.model_name == 'GB'):
+                elif(self.name == 'GB'):
                     self.model = GradientBoostingRegressor(loss="quantile", 
                                                         alpha=self.quantile,
                                                         learning_rate = self.learning_rate,
@@ -224,7 +226,7 @@ class Ensembles:
                                                     "truth": ytest,
                                                     "pred": ypred
                                                 })
-                elif(self.model_name == 'HGB'):
+                elif(self.name == 'HGB'):
                     self.model = HistGradientBoostingRegressor(loss="quantile", 
                                                         quantile=self.quantile,
                                                         learning_rate = self.learning_rate,
@@ -242,7 +244,7 @@ class Ensembles:
                 with open(os.path.join(save_model_path, save_model_name),'wb') as file:
                     pickle.dump(self.model, file)
             else:
-                with open(os.path.join(save_model_path, self.model_name),'wb') as file:
+                with open(os.path.join(save_model_path, self.name),'wb') as file:
                     pickle.dump(self.model, file)
  
         return predictions

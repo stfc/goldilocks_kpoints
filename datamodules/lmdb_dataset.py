@@ -10,7 +10,10 @@ import torch
 from typing import Dict
 from pymatgen.core.structure import Structure
 from utils.cgcnn_graph import build_radius_cgcnn_graph_from_structure, build_crystalnn_cgcnn_graph_from_structure
-from utils.alignn_graph import build_alignn_graph_with_angles_from_structure
+from utils.alignn_graph import (
+    build_alignn_graph_with_angles_from_structure,
+    prepare_structure_for_alignn,
+)
 from utils.atom_features_utils import atom_features_from_structure
 
 import lmdb
@@ -125,9 +128,14 @@ def create_lmdb_database(data,
         for idx in range(len(data)):
             cif_path = os.path.join(data_dir, str(int(data.iloc[idx][0])) + '.cif')
             structure = Structure.from_file(cif_path)
-            atom_features = atom_features_from_structure(structure, atomic_features)
             label = torch.tensor(data.iloc[idx][1]).type(torch.get_default_dtype())
             sample_id = torch.tensor(int(data.iloc[idx][0]))
+
+            if model == "alignn":
+                # Single-site primitives: 2×2×2 supercell so periodic bonds use distinct
+                # site indices and the ALIGNN line graph is non-empty.
+                structure = prepare_structure_for_alignn(structure)
+            atom_features = atom_features_from_structure(structure, atomic_features)
 
             if model == "alignn":
                 data_g, data_lg = build_alignn_graph_with_angles_from_structure(
